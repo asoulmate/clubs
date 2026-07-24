@@ -66,7 +66,12 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
                   )}
                 </td>
                 <td className={`${stickyName} whitespace-nowrap bg-white px-2 py-2`}>
-                  <PlayerNameButton userId={row.user_id} name={row.name} className="min-h-9" />
+                  <PlayerNameButton
+                    userId={row.user_id}
+                    name={row.name}
+                    awardLevel={row.award_level}
+                    className="min-h-9 justify-start"
+                  />
                   <span className="ml-1 hidden text-xs text-gray-400 lg:inline">
                     {AWARD_LEVEL_LABELS[row.award_level]}
                   </span>

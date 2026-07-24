@@ -42,14 +42,14 @@ const TEAM_POSITIONS: Record<TeamSide, PlayerPosition[]> = {
   B: ['B1', 'B2'],
 }
 
-// 상태별 카드 테두리/배경 하이라이트 (색상 + 배지 텍스트·아이콘을 함께 사용)
+// 상태별 카드 테두리 + 부드러운 배경색 (색상만으로 구분하지 않고 배지 텍스트·아이콘과 함께 사용)
 const STATUS_CARD_STYLES: Record<MatchStatus, string> = {
-  open: 'border-gray-200',
-  ready: 'border-indigo-400',
-  in_progress: 'border-amber-400 ring-2 ring-amber-100',
-  submitted: 'border-orange-400 ring-2 ring-orange-100',
-  confirmed: 'border-green-500 bg-green-50/60',
-  canceled: 'border-gray-200 opacity-60',
+  open: 'border-gray-200 bg-white',
+  ready: 'border-indigo-300 bg-indigo-50/70',
+  in_progress: 'border-amber-300 bg-amber-50/80',
+  submitted: 'border-orange-300 bg-orange-50/70',
+  confirmed: 'border-emerald-300 bg-emerald-50/70',
+  canceled: 'border-gray-200 bg-gray-100/80 opacity-70',
 }
 
 /**
@@ -127,11 +127,12 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
       canRemovePlayer(profile, match, player.user_id, player.registered_by)
 
     return (
-      <div key={position} className="relative flex min-h-11 w-full items-center rounded-xl bg-gray-50">
+      <div key={position} className="relative flex min-h-11 w-full items-center justify-center rounded-xl bg-white/70">
         <PlayerNameButton
           userId={player.user_id}
           name={player.profile?.name ?? '(알 수 없음)'}
-          className="w-full text-center"
+          awardLevel={player.profile?.award_level}
+          className="w-full justify-center text-center no-underline"
         />
         {removable && (
           <button
@@ -151,11 +152,18 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
   const renderScore = (team: TeamSide) => {
     const score = team === 'A' ? match.team_a_score : match.team_b_score
     const isWinner = winner === team
+    const isLoser = winner !== null && winner !== team
     return (
       <div className="flex flex-col items-center">
         <span
           className={`text-4xl font-extrabold tabular-nums ${
-            score === null ? 'text-gray-300' : isWinner ? 'text-green-700' : 'text-gray-800'
+            score === null
+              ? 'text-gray-300'
+              : isWinner
+                ? 'text-green-700'
+                : isLoser
+                  ? 'text-gray-500'
+                  : 'text-gray-800'
           }`}
         >
           {score ?? '-'}
@@ -165,13 +173,18 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
             🏆 승
           </span>
         )}
+        {isLoser && (
+          <span className="text-xs font-bold text-gray-500" aria-label="패배">
+            패
+          </span>
+        )}
       </div>
     )
   }
 
   return (
     <article
-      className={`rounded-2xl border-2 bg-white p-3 shadow-sm ${STATUS_CARD_STYLES[match.status]}`}
+      className={`rounded-2xl border-2 p-3 shadow-sm ${STATUS_CARD_STYLES[match.status]}`}
     >
       {/* 헤더: 경기 번호 + 상태 + 삭제/취소 */}
       <div className="mb-2 flex items-center justify-between">

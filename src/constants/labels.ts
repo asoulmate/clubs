@@ -2,18 +2,26 @@ import type { AwardLevel, MatchStatus, PlayerPosition, UserRole } from '../types
 
 /** 입상 구분 한글 라벨 */
 export const AWARD_LEVEL_LABELS: Record<AwardLevel, string> = {
-  open: '오픈부',
-  national_rookie: '전국신인부',
-  local_rookie: '지역신인부',
+  open: '오픈부입상',
+  national_rookie: '전국신인부입상',
+  local_rookie: '지역신인부입상',
   none: '비입상',
 }
 
 export const AWARD_LEVEL_OPTIONS: { value: AwardLevel; label: string }[] = [
-  { value: 'open', label: '오픈부' },
-  { value: 'national_rookie', label: '전국신인부' },
-  { value: 'local_rookie', label: '지역신인부' },
+  { value: 'open', label: '오픈부입상' },
+  { value: 'national_rookie', label: '전국신인부입상' },
+  { value: 'local_rookie', label: '지역신인부입상' },
   { value: 'none', label: '비입상' },
 ]
+
+/** 이름 오른쪽 표시용 입상 아이콘 (비입상은 빈 문자열) */
+export const AWARD_LEVEL_ICONS: Record<AwardLevel, string> = {
+  open: '🏆',
+  national_rookie: '⭐',
+  local_rookie: '💫',
+  none: '',
+}
 
 /** 사용자 역할 한글 라벨 */
 export const ROLE_LABELS: Record<UserRole, string> = {
