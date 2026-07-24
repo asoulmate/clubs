@@ -1,0 +1,237 @@
+import { useState } from 'react'
+import { cancelMatch, confirmScore, removePlayer, startMatch } from '../../services/matchService'
+import { useAuthStore } from '../../stores/authStore'
+import { useToastStore } from '../../stores/toastStore'
+import type { MatchPlayer, MatchWithPlayers, PlayerPosition, TeamSide } from '../../types/domain'
+import { toErrorMessage } from '../../utils/errors'
+import {
+  canCancelMatch,
+  canConfirmScore,
+  canRemovePlayer,
+  canSubmitScore,
+  isParticipant,
+} from '../../utils/permissions'
+import { winnerTeam } from '../../utils/score'
+import { PlayerNameButton } from '../players/PlayerNameButton'
+import { RegisterSlotDialog } from './RegisterSlotDialog'
+import { ScoreDialog } from './ScoreDialog'
+import { StatusBadge } from './StatusBadge'
+
+interface MatchCardProps {
+  match: MatchWithPlayers
+  /** 화면 표시용 경기 번호 (1부터) */
+  index: number
+  onChanged: () => void
+}
+
+const TEAM_POSITIONS: Record<TeamSide, PlayerPosition[]> = {
+  A: ['A1', 'A2'],
+  B: ['B1', 'B2'],
+}
+
+/**
+ * 경기 카드 (모바일 우선)
+ *  경기 번호·상태 / A팀 선수·점수 / VS / B팀 점수·선수 / 액션 버튼
+ */
+export function MatchCard({ match, index, onChanged }: MatchCardProps) {
+  const profile = useAuthStore((s) => s.profile)
+  const showToast = useToastStore((s) => s.show)
+  const [registerPosition, setRegisterPosition] = useState<PlayerPosition | null>(null)
+  const [scoreOpen, setScoreOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const playerAt = (position: PlayerPosition): MatchPlayer | undefined =>
+    match.players.find((p) => p.position === position)
+
+  const winner =
+    match.team_a_score !== null && match.team_b_score !== null
+      ? winnerTeam(match.team_a_score, match.team_b_score)
+      : null
+
+  const isCanceled = match.status === 'canceled'
+
+  /** 공통 액션 실행 래퍼 (오류 시 한글 토스트) */
+  const run = async (action: () => Promise<void>, successMessage?: string) => {
+    setBusy(true)
+    try {
+      await action()
+      if (successMessage) showToast(successMessage, 'success')
+      onChanged()
+    } catch (err) {
+      showToast(toErrorMessage(err), 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleRemove = (position: PlayerPosition) => {
+    if (!window.confirm('이 참가자를 자리에서 제외할까요?')) return
+    void run(() => removePlayer(match.id, position), '참가자가 제외되었습니다.')
+  }
+
+  const handleCancel = () => {
+    if (!window.confirm('이 경기를 취소할까요? 취소된 경기는 집계에 포함되지 않습니다.')) return
+    void run(() => cancelMatch(match.id), '경기가 취소되었습니다.')
+  }
+
+  /** 슬롯 1칸 렌더링 */
+  const renderSlot = (position: PlayerPosition) => {
+    const player = playerAt(position)
+
+    if (!player) {
+      return (
+        <button
+          key={position}
+          type="button"
+          disabled={isCanceled || busy}
+          onClick={() => setRegisterPosition(position)}
+          className="flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-dashed border-gray-300 px-2 text-sm font-medium text-gray-400 active:bg-gray-50 disabled:opacity-40"
+        >
+          + 빈 자리
+        </button>
+      )
+    }
+
+    return (
+      <div
+        key={position}
+        className="flex min-h-11 w-full items-center justify-between gap-1 rounded-xl bg-gray-50 px-2"
+      >
+        <PlayerNameButton userId={player.user_id} name={player.profile?.name ?? '(알 수 없음)'} />
+        {!isCanceled &&
+          profile &&
+          canRemovePlayer(profile, match, player.user_id, player.registered_by) && (
+            <button
+              type="button"
+              onClick={() => handleRemove(position)}
+              aria-label={`${player.profile?.name ?? ''} 제외`}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 active:bg-gray-200"
+            >
+              ×
+            </button>
+          )}
+      </div>
+    )
+  }
+
+  /** 팀 점수 표시 */
+  const renderScore = (team: TeamSide) => {
+    const score = team === 'A' ? match.team_a_score : match.team_b_score
+    const isWinner = winner === team
+    return (
+      <p
+        className={`text-center text-4xl font-extrabold tabular-nums ${
+          isWinner ? 'text-green-700' : 'text-gray-800'
+        } ${score === null ? 'text-gray-300' : ''}`}
+      >
+        {score ?? '-'}
+        {isWinner && (
+          <span className="ml-1 align-middle text-base" aria-label="승리">
+            🏆
+          </span>
+        )}
+      </p>
+    )
+  }
+
+  return (
+    <article
+      className={`rounded-2xl border border-gray-100 bg-white p-4 shadow-sm ${isCanceled ? 'opacity-60' : ''}`}
+    >
+      {/* 헤더: 경기 번호 + 상태 + 취소 버튼 */}
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-gray-700">#{index}</span>
+          <StatusBadge status={match.status} />
+        </div>
+        {profile && canCancelMatch(profile, match) && (
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={busy}
+            className="min-h-9 rounded-lg px-2 text-sm text-gray-400 underline active:text-red-600"
+          >
+            경기 취소
+          </button>
+        )}
+      </div>
+
+      {/* 팀 편성 + 점수 */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2">
+        <div className="flex flex-col gap-2">
+          <p className="text-center text-xs font-bold text-gray-500">A팀</p>
+          {TEAM_POSITIONS.A.map(renderSlot)}
+          {renderScore('A')}
+        </div>
+
+        <div className="flex h-full items-center pt-8 text-sm font-bold text-gray-300">VS</div>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-center text-xs font-bold text-gray-500">B팀</p>
+          {TEAM_POSITIONS.B.map(renderSlot)}
+          {renderScore('B')}
+        </div>
+      </div>
+
+      {/* 액션 버튼 */}
+      {!isCanceled && profile && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {match.status === 'ready' && isParticipant(profile.id, match) && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(() => startMatch(match.id))}
+              className="h-11 flex-1 rounded-xl border-2 border-green-700 font-bold text-green-700 active:bg-green-50 disabled:opacity-50"
+            >
+              경기 시작
+            </button>
+          )}
+
+          {canSubmitScore(profile, match) && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setScoreOpen(true)}
+              className="h-11 flex-1 rounded-xl bg-green-700 font-bold text-white active:bg-green-800 disabled:opacity-50"
+            >
+              {match.status === 'submitted' ? '스코어 수정' : '스코어 입력'}
+            </button>
+          )}
+
+          {canConfirmScore(profile, match) && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void run(() => confirmScore(match.id, match.version), '스코어가 확정되었습니다.')
+              }
+              className="h-11 flex-1 rounded-xl bg-orange-500 font-bold text-white active:bg-orange-600 disabled:opacity-50"
+            >
+              최종 확인
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 확정 대기 안내 */}
+      {match.status === 'submitted' && !canConfirmScore(profile, match) && (
+        <p className="mt-2 text-center text-sm text-orange-600">
+          상대 팀 참가자의 최종 확인을 기다리고 있습니다.
+        </p>
+      )}
+
+      {/* 다이얼로그 */}
+      {registerPosition && (
+        <RegisterSlotDialog
+          match={match}
+          position={registerPosition}
+          onClose={() => setRegisterPosition(null)}
+          onChanged={onChanged}
+        />
+      )}
+      {scoreOpen && (
+        <ScoreDialog match={match} onClose={() => setScoreOpen(false)} onChanged={onChanged} />
+      )}
+    </article>
+  )
+}

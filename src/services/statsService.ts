@@ -1,0 +1,64 @@
+import { supabase } from '../lib/supabase'
+import type {
+  MonthlyTrendRow,
+  PartnerStatsRow,
+  PlayerStatsRow,
+  RecentMatchRow,
+} from '../types/domain'
+
+// ============================================================
+// 통계 데이터 접근 계층
+// 집계는 전부 DB(RPC)에서 수행하고 프런트는 결과만 받아 순위를 부여한다.
+// ============================================================
+
+/** 기간별 전체 사용자 집계 (확정 경기만 포함) */
+export async function fetchPlayerStats(from: string, to: string): Promise<PlayerStatsRow[]> {
+  const { data, error } = await supabase.rpc('get_player_stats', { p_from: from, p_to: to })
+  if (error) throw error
+  return (data ?? []) as PlayerStatsRow[]
+}
+
+/** 특정 사용자의 누적 요약 (이름 클릭 팝오버용) */
+export async function fetchPlayerSummary(
+  userId: string,
+  from: string,
+  to: string,
+): Promise<PlayerStatsRow | null> {
+  const rows = await fetchPlayerStats(from, to)
+  return rows.find((r) => r.user_id === userId) ?? null
+}
+
+/** 파트너별 집계 */
+export async function fetchPartnerStats(
+  userId: string,
+  from: string,
+  to: string,
+): Promise<PartnerStatsRow[]> {
+  const { data, error } = await supabase.rpc('get_partner_stats', {
+    p_user_id: userId,
+    p_from: from,
+    p_to: to,
+  })
+  if (error) throw error
+  return (data ?? []) as PartnerStatsRow[]
+}
+
+/** 월별 경기 추이 */
+export async function fetchMonthlyTrend(userId: string, months = 12): Promise<MonthlyTrendRow[]> {
+  const { data, error } = await supabase.rpc('get_player_monthly_trend', {
+    p_user_id: userId,
+    p_months: months,
+  })
+  if (error) throw error
+  return (data ?? []) as MonthlyTrendRow[]
+}
+
+/** 최근 경기 목록 */
+export async function fetchRecentMatches(userId: string, limit = 10): Promise<RecentMatchRow[]> {
+  const { data, error } = await supabase.rpc('get_player_recent_matches', {
+    p_user_id: userId,
+    p_limit: limit,
+  })
+  if (error) throw error
+  return (data ?? []) as RecentMatchRow[]
+}

@@ -1,0 +1,18 @@
+# 의존성
+node_modules
+
+# 빌드 결과물
+dist
+dist-ssr
+
+# 환경변수 (비밀 정보 포함 금지 원칙이지만 로컬 값도 커밋하지 않는다)
+.env
+.env.local
+.env.*.local
+
+# 로그 및 편집기
+*.log
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json

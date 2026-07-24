@@ -1,0 +1,62 @@
+# main 브랜치 push 시 GitHub Pages로 자동 배포
+#
+# 사전 준비 (저장소 Settings):
+#  1. Pages → Source 를 "GitHub Actions" 로 설정
+#  2. Secrets and variables → Actions 에 아래 값 등록
+#     - SUPABASE_URL              (Secrets 또는 Variables)
+#     - SUPABASE_PUBLISHABLE_KEY  (Secrets 또는 Variables)
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: TypeScript 검사 및 빌드
+        run: npm run build
+        env:
+          # 저장소 이름에 따라 배포 하위 경로 자동 설정 (예: /morning-star/)
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Pages 아티팩트 업로드
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: GitHub Pages 배포
+        id: deployment
+        uses: actions/deploy-pages@v4

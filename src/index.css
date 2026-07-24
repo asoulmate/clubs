@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* ============================================================
+   전역 스타일 (모바일 우선)
+   - 본문 기본 글자 크기 16px 이상 (iOS 입력창 자동 확대 방지 포함)
+   - iPhone Safe Area 대응
+   ============================================================ */
+
+:root {
+  font-size: 16px;
+}
+
+html,
+body {
+  height: 100%;
+  background-color: #f3f4f6;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  /* 시스템 폰트 스택 (한글 포함) */
+  font-family:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', Roboto, sans-serif;
+}
+
+/* iOS에서 입력창 포커스 시 화면 자동 확대 방지 (16px 미만이면 확대됨) */
+input,
+select,
+textarea,
+button {
+  font-size: 1rem;
+}
+
+/* Safe Area 대응 유틸 */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* 하단 내비게이션 높이 + Safe Area 만큼 본문 하단 여백 확보 */
+.pb-nav {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* 숫자 입력의 스핀 버튼 제거 (스코어 입력) */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
