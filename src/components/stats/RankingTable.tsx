@@ -7,10 +7,19 @@ interface RankingTableProps {
   minMatches: number
 }
 
+/** 1·2·3등 행 배경 (sticky 셀에도 동일하게 적용) */
+function podiumStyles(rank: number | null): { row: string; sticky: string } {
+  if (rank === 1) return { row: 'bg-amber-100', sticky: 'bg-amber-100' }
+  if (rank === 2) return { row: 'bg-slate-200/80', sticky: 'bg-slate-200/80' }
+  if (rank === 3) return { row: 'bg-orange-100', sticky: 'bg-orange-100' }
+  return { row: '', sticky: 'bg-white' }
+}
+
 /**
  * 개인별 순위표
  *  - 참가율 다음(맨 끝)에 무단 결석 열 표시
- *  - 모바일 가로 스크롤 + 순위·이름 sticky 고정
+ *  - 1·2·3등 행 하이라이트
+ *  - 경기 0회는 하단 배치(순위 계산에서 제외)
  */
 export function RankingTable({ rows, minMatches }: RankingTableProps) {
   if (rows.length === 0) {
@@ -52,25 +61,51 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
           <tbody>
             {rows.map((row) => {
               const absences = row.absences ?? 0
+              const podium = podiumStyles(row.rank)
+              const absenceCellBg =
+                absences > 0
+                  ? row.rank === 1
+                    ? 'bg-red-100'
+                    : 'bg-red-50'
+                  : ''
+
               return (
-                <tr key={row.user_id} className="border-b border-gray-50 last:border-b-0">
-                  <td className={`${stickyRank} bg-white px-1 py-2 text-center`}>
+                <tr
+                  key={row.user_id}
+                  className={`border-b border-gray-50 last:border-b-0 ${podium.row}`}
+                >
+                  <td className={`${stickyRank} ${podium.sticky} px-1 py-2 text-center`}>
                     {row.rank === null ? (
                       <span
-                        className="text-xs text-gray-400"
-                        title={`최소 ${minMatches}경기 미달로 순위 제외`}
+                        className="text-xs font-medium text-gray-400"
+                        title={
+                          row.matches_played === 0
+                            ? '확정 경기 미참가 (순위 제외)'
+                            : `최소 ${minMatches}경기 미달로 순위 제외`
+                        }
                       >
-                        제외
+                        {row.matches_played === 0 ? '미참가' : '제외'}
                       </span>
-                    ) : row.rank <= 3 ? (
-                      <span className="text-base" aria-label={`${row.rank}위`}>
-                        {row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : '🥉'}
+                    ) : row.rank === 1 ? (
+                      <span className="inline-flex flex-col items-center text-base font-extrabold text-amber-800" aria-label="1위">
+                        <span>🥇</span>
+                        <span className="text-[10px]">1위</span>
+                      </span>
+                    ) : row.rank === 2 ? (
+                      <span className="inline-flex flex-col items-center text-base font-extrabold text-slate-700" aria-label="2위">
+                        <span>🥈</span>
+                        <span className="text-[10px]">2위</span>
+                      </span>
+                    ) : row.rank === 3 ? (
+                      <span className="inline-flex flex-col items-center text-base font-extrabold text-orange-800" aria-label="3위">
+                        <span>🥉</span>
+                        <span className="text-[10px]">3위</span>
                       </span>
                     ) : (
                       <span className="font-bold text-gray-700">{row.rank}</span>
                     )}
                   </td>
-                  <td className={`${stickyName} whitespace-nowrap bg-white px-2 py-2`}>
+                  <td className={`${stickyName} ${podium.sticky} whitespace-nowrap px-2 py-2`}>
                     <PlayerNameButton
                       userId={row.user_id}
                       name={row.name}
@@ -95,7 +130,7 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
                   <td className={numCell}>{row.participation_rate.toFixed(0)}%</td>
                   <td
                     className={`${numCell} font-extrabold ${
-                      absences > 0 ? 'bg-red-50 text-red-700' : 'text-gray-400'
+                      absences > 0 ? `${absenceCellBg} text-red-700` : 'text-gray-400'
                     }`}
                   >
                     {absences}

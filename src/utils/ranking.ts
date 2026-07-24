@@ -12,6 +12,7 @@ import type { PlayerStatsRow, RankedPlayerStats } from '../types/domain'
 //   6. 이름 오름차순 (순위 동률 판단에서는 제외)
 //
 // 동률 정책: 공동 순위를 허용하는 경쟁 순위 방식 (1, 2, 2, 4위)
+// 경기 0회(무단 결석만 등)는 공식 순위에서 제외하고 목록 맨 아래에 배치
 // ============================================================
 
 /** 승률 계산: 경기 수가 0이면 0% */
@@ -58,19 +59,31 @@ function isTied(a: Derived, b: Derived): boolean {
   return ka.every((v, i) => v === kb[i])
 }
 
+/** 공식 순위 대상: 최소 1경기 이상 + 설정상 최소 경기 수 충족 */
+function isQualified(row: Derived, minMatches: number): boolean {
+  return row.matches_played > 0 && row.matches_played >= minMatches
+}
+
+/** 순위 제외 그룹 정렬: 무단 결석 많은 순 → 이름 */
+function compareUnqualified(a: Derived, b: Derived): number {
+  const aa = a.absences ?? 0
+  const ba = b.absences ?? 0
+  if (aa !== ba) return ba - aa
+  return a.name.localeCompare(b.name, 'ko')
+}
+
 /**
  * 통계 행에 경쟁 순위(1, 2, 2, 4위)를 부여한다.
- * 최소 경기 수(minMatches) 미달 사용자는 rank = null로 목록 하단에 배치한다.
+ * 경기 0회·최소 경기 수 미달은 rank = null 로 목록 하단에 배치한다.
  */
 export function buildRanking(rows: PlayerStatsRow[], minMatches: number): RankedPlayerStats[] {
   const derived = rows.map(withDerived)
 
-  const qualified = derived.filter((r) => r.matches_played >= minMatches).sort(compareByRanking)
-  const unqualified = derived.filter((r) => r.matches_played < minMatches).sort(compareByRanking)
+  const qualified = derived.filter((r) => isQualified(r, minMatches)).sort(compareByRanking)
+  const unqualified = derived.filter((r) => !isQualified(r, minMatches)).sort(compareUnqualified)
 
   const ranked: RankedPlayerStats[] = []
   qualified.forEach((row, index) => {
-    // 경쟁 순위: 직전 행과 동률이면 같은 순위, 아니면 (인덱스 + 1)
     const prev = ranked[index - 1]
     const rank = prev && isTied(row, qualified[index - 1]) ? prev.rank : index + 1
     ranked.push({ ...row, rank })
