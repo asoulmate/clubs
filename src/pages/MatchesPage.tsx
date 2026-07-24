@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { DateNavigator } from '../components/common/DateNavigator'
 import { EmptyState } from '../components/common/EmptyState'
 import { Spinner } from '../components/common/Spinner'
+import { AbsencesPanel } from '../components/match/AbsencesPanel'
 import { CreateMatchDialog } from '../components/match/CreateMatchDialog'
 import { MatchCard } from '../components/match/MatchCard'
 import { useMatchesByDate } from '../hooks/useMatchesByDate'
@@ -9,8 +10,8 @@ import { todayKst } from '../utils/kst'
 
 /**
  * 오늘의 경기 페이지 (메인)
- *  - 기본 날짜: 한국 시간 기준 오늘
- *  - Realtime으로 경기 생성/참가자/스코어 변경이 실시간 반영됨
+ *  - 상단: 해당 날짜 무단 결석자 등록
+ *  - Realtime으로 경기·결석 변경이 실시간 반영됨
  */
 export function MatchesPage() {
   const [date, setDate] = useState(() => todayKst())
@@ -20,6 +21,8 @@ export function MatchesPage() {
   return (
     <div className="flex flex-col gap-4">
       <DateNavigator date={date} onChange={setDate} />
+
+      <AbsencesPanel date={date} />
 
       {loading ? (
         <div className="flex justify-center py-16">
@@ -46,7 +49,6 @@ export function MatchesPage() {
         </div>
       )}
 
-      {/* 신규 경기 생성 버튼 (모바일 하단 내비게이션 위에 고정) */}
       <div className="pb-safe fixed bottom-20 left-1/2 z-30 -translate-x-1/2 md:bottom-8">
         <button
           type="button"

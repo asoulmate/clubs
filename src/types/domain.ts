@@ -123,6 +123,8 @@ export interface PlayerStatsRow {
   points_against: number
   days_participated: number
   total_match_days: number
+  /** 기간 내 무단 결석 횟수 */
+  absences: number
 }
 
 /** 순위·파생 지표가 부여된 통계 행 */

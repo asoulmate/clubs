@@ -9,18 +9,20 @@ interface RankingTableProps {
 
 /**
  * 개인별 순위표
- *  - 모든 컬럼(경기/승/패/승률/득점/실점/득실차/참가일/참가율)을 항상 표시
- *  - 모바일에서는 가로 스크롤로 확인하되, 순위와 이름 컬럼은
- *    sticky로 고정되어 스크롤해도 따라온다
+ *  - 참가율 다음(맨 끝)에 무단 결석 열 표시
+ *  - 모바일 가로 스크롤 + 순위·이름 sticky 고정
  */
 export function RankingTable({ rows, minMatches }: RankingTableProps) {
   if (rows.length === 0) {
-    return <p className="py-10 text-center text-gray-500">해당 기간에 확정된 경기가 없습니다.</p>
+    return (
+      <p className="py-10 text-center text-gray-500">
+        해당 기간에 확정된 경기 또는 무단 결석 기록이 없습니다.
+      </p>
+    )
   }
 
   const hasTies = rows.some((r) => r.ties > 0)
 
-  // sticky 고정 컬럼(순위·이름)은 스크롤 시 아래 내용이 비치지 않도록 배경색 필수
   const stickyRank = 'sticky left-0 z-10 w-11 min-w-11'
   const stickyName = 'sticky left-11 z-10 border-r border-gray-200'
   const numCell = 'whitespace-nowrap px-2.5 py-2 text-center tabular-nums'
@@ -44,52 +46,63 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
               <th className={numHead}>득실차</th>
               <th className={numHead}>참가일</th>
               <th className={numHead}>참가율</th>
+              <th className={`${numHead} text-red-700`}>무단결석</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.user_id} className="border-b border-gray-50 last:border-b-0">
-                <td className={`${stickyRank} bg-white px-1 py-2 text-center`}>
-                  {row.rank === null ? (
-                    <span
-                      className="text-xs text-gray-400"
-                      title={`최소 ${minMatches}경기 미달로 순위 제외`}
-                    >
-                      제외
+            {rows.map((row) => {
+              const absences = row.absences ?? 0
+              return (
+                <tr key={row.user_id} className="border-b border-gray-50 last:border-b-0">
+                  <td className={`${stickyRank} bg-white px-1 py-2 text-center`}>
+                    {row.rank === null ? (
+                      <span
+                        className="text-xs text-gray-400"
+                        title={`최소 ${minMatches}경기 미달로 순위 제외`}
+                      >
+                        제외
+                      </span>
+                    ) : row.rank <= 3 ? (
+                      <span className="text-base" aria-label={`${row.rank}위`}>
+                        {row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : '🥉'}
+                      </span>
+                    ) : (
+                      <span className="font-bold text-gray-700">{row.rank}</span>
+                    )}
+                  </td>
+                  <td className={`${stickyName} whitespace-nowrap bg-white px-2 py-2`}>
+                    <PlayerNameButton
+                      userId={row.user_id}
+                      name={row.name}
+                      awardLevel={row.award_level}
+                      className="min-h-9 justify-start"
+                    />
+                    <span className="ml-1 hidden text-xs text-gray-400 lg:inline">
+                      {AWARD_LEVEL_LABELS[row.award_level]}
                     </span>
-                  ) : row.rank <= 3 ? (
-                    <span className="text-base" aria-label={`${row.rank}위`}>
-                      {row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : '🥉'}
-                    </span>
-                  ) : (
-                    <span className="font-bold text-gray-700">{row.rank}</span>
-                  )}
-                </td>
-                <td className={`${stickyName} whitespace-nowrap bg-white px-2 py-2`}>
-                  <PlayerNameButton
-                    userId={row.user_id}
-                    name={row.name}
-                    awardLevel={row.award_level}
-                    className="min-h-9 justify-start"
-                  />
-                  <span className="ml-1 hidden text-xs text-gray-400 lg:inline">
-                    {AWARD_LEVEL_LABELS[row.award_level]}
-                  </span>
-                </td>
-                <td className={numCell}>{row.matches_played}</td>
-                <td className={`${numCell} font-semibold text-green-700`}>{row.wins}</td>
-                <td className={`${numCell} font-semibold text-red-600`}>{row.losses}</td>
-                {hasTies && <td className={`${numCell} text-gray-500`}>{row.ties}</td>}
-                <td className={`${numCell} font-semibold`}>{row.win_rate.toFixed(1)}%</td>
-                <td className={numCell}>{row.points_for}</td>
-                <td className={numCell}>{row.points_against}</td>
-                <td className={numCell}>
-                  {row.point_diff > 0 ? `+${row.point_diff}` : row.point_diff}
-                </td>
-                <td className={numCell}>{row.days_participated}일</td>
-                <td className={numCell}>{row.participation_rate.toFixed(0)}%</td>
-              </tr>
-            ))}
+                  </td>
+                  <td className={numCell}>{row.matches_played}</td>
+                  <td className={`${numCell} font-semibold text-green-700`}>{row.wins}</td>
+                  <td className={`${numCell} font-semibold text-red-600`}>{row.losses}</td>
+                  {hasTies && <td className={`${numCell} text-gray-500`}>{row.ties}</td>}
+                  <td className={`${numCell} font-semibold`}>{row.win_rate.toFixed(1)}%</td>
+                  <td className={numCell}>{row.points_for}</td>
+                  <td className={numCell}>{row.points_against}</td>
+                  <td className={numCell}>
+                    {row.point_diff > 0 ? `+${row.point_diff}` : row.point_diff}
+                  </td>
+                  <td className={numCell}>{row.days_participated}일</td>
+                  <td className={numCell}>{row.participation_rate.toFixed(0)}%</td>
+                  <td
+                    className={`${numCell} font-extrabold ${
+                      absences > 0 ? 'bg-red-50 text-red-700' : 'text-gray-400'
+                    }`}
+                  >
+                    {absences}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

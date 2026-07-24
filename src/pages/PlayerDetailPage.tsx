@@ -21,11 +21,27 @@ import { ALL_TIME_RANGE } from '../utils/period'
 import { calcParticipationRate, calcWinRate } from '../utils/ranking'
 
 /** 통계 카드 1칸 */
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string
+  value: string
+  highlight?: boolean
+}) {
   return (
-    <div className="rounded-xl bg-white py-3 text-center shadow-sm">
-      <p className="text-lg font-extrabold tabular-nums">{value}</p>
-      <p className="text-xs text-gray-500">{label}</p>
+    <div
+      className={`rounded-xl py-3 text-center shadow-sm ${
+        highlight ? 'border-2 border-red-400 bg-red-50' : 'bg-white'
+      }`}
+    >
+      <p
+        className={`text-lg font-extrabold tabular-nums ${highlight ? 'text-red-700' : ''}`}
+      >
+        {value}
+      </p>
+      <p className={`text-xs ${highlight ? 'font-bold text-red-700' : 'text-gray-500'}`}>{label}</p>
     </div>
   )
 }
@@ -118,8 +134,8 @@ export function PlayerDetailPage() {
         </p>
       </div>
 
-      {/* 누적 통계 카드 */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* 누적 통계 카드 — 5열 2행 + 무단결석 강조 */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <StatCard label="총 경기" value={`${stats?.matches_played ?? 0}`} />
         <StatCard label="승" value={`${stats?.wins ?? 0}`} />
         <StatCard label="패" value={`${stats?.losses ?? 0}`} />
@@ -129,6 +145,11 @@ export function PlayerDetailPage() {
         <StatCard label="득실차" value={pointDiff > 0 ? `+${pointDiff}` : `${pointDiff}`} />
         <StatCard label="누적 참가일" value={`${stats?.days_participated ?? 0}일`} />
         <StatCard label="참가율" value={`${participationRate.toFixed(0)}%`} />
+        <StatCard
+          label="무단 결석"
+          value={`${stats?.absences ?? 0}회`}
+          highlight
+        />
       </div>
 
       {/* 파트너별 기록 */}
