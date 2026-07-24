@@ -26,17 +26,21 @@ create type public.team_side as enum ('A', 'B');
 -- ------------------------------------------------------------
 -- profiles: 사용자 프로필 및 역할
 -- ------------------------------------------------------------
+-- id 는 일반 회원의 경우 auth.users.id 와 동일.
+-- 게스트(is_guest=true)는 auth 계정 없이 profiles 에만 존재하므로 auth.users FK 를 두지 않는다.
 create table public.profiles (
-  id          uuid primary key references auth.users (id) on delete cascade,
+  id          uuid primary key default gen_random_uuid(),
   name        text not null check (char_length(trim(name)) between 1 and 30),
   award_level public.award_level not null default 'none',
   role        public.user_role not null default 'user',
   is_active   boolean not null default true,
+  is_guest    boolean not null default false,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
 
-comment on table public.profiles is '사용자 프로필. 역할(role)은 클라이언트가 직접 수정할 수 없으며 관리자 RPC로만 변경 가능.';
+comment on table public.profiles is '사용자 프로필. 역할(role)은 클라이언트가 직접 수정할 수 없으며 관리자 RPC로만 변경 가능. 게스트는 is_guest=true.';
+comment on column public.profiles.is_guest is 'true면 비밀번호 미설정 게스트. 이후 동명 회원가입 시 실계정으로 연동됨.';
 
 -- ------------------------------------------------------------
 -- matches: 경기 기본 정보와 스코어
@@ -120,7 +124,7 @@ create table public.app_settings (
   updated_by  uuid references public.profiles (id)
 );
 
-comment on table public.app_settings is '운영 설정. confirm_mode, allow_tie, score_max, min_matches_for_ranking, allow_proxy_registration 등.';
+comment on table public.app_settings is '운영 설정. confirm_mode, allow_tie, score_max, min_matches_for_ranking, allow_proxy_registration, require_signup_approval 등.';
 
 -- ------------------------------------------------------------
 -- 인덱스
@@ -138,6 +142,8 @@ create index idx_audit_logs_match on public.match_audit_logs (match_id);
 create index idx_audit_logs_changed_at on public.match_audit_logs (changed_at desc);
 -- 이름 부분 검색 (자동완성)
 create index idx_profiles_name on public.profiles (name text_pattern_ops);
+-- 게스트 동명 연동용
+create index idx_profiles_guest_name on public.profiles (lower(trim(name))) where is_guest = true;
 
 -- ------------------------------------------------------------
 -- updated_at 자동 갱신 트리거

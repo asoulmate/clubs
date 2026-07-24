@@ -19,7 +19,7 @@ export async function fetchMatchesByDate(date: string): Promise<MatchWithPlayers
     .order('created_at', { ascending: true })
 
   if (error) throw error
-  return (data ?? []) as unknown as MatchWithPlayers[]
+  return normalizeMatches((data ?? []) as unknown as MatchWithPlayers[])
 }
 
 /** 단일 경기 조회 (Realtime 이벤트 수신 시 해당 경기만 갱신할 때 사용) */
@@ -31,7 +31,20 @@ export async function fetchMatchById(matchId: string): Promise<MatchWithPlayers 
     .maybeSingle()
 
   if (error) throw error
-  return data as unknown as MatchWithPlayers | null
+  if (!data) return null
+  return normalizeMatches([data as unknown as MatchWithPlayers])[0] ?? null
+}
+
+function normalizeMatches(matches: MatchWithPlayers[]): MatchWithPlayers[] {
+  return matches.map((m) => ({
+    ...m,
+    players: (m.players ?? []).map((p) => ({
+      ...p,
+      profile: p.profile
+        ? { ...p.profile, is_guest: Boolean(p.profile.is_guest) }
+        : p.profile,
+    })),
+  }))
 }
 
 /** 신규 경기 생성 (생성자는 A1로 자동 등록됨). 생성된 경기 id 반환 */

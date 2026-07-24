@@ -99,6 +99,9 @@ export function SignupPage() {
             className={authInputClass}
             placeholder="실명 입력 (예: 홍길동)"
           />
+          <span className="text-xs text-gray-400">
+            이전에 게스트로 등록된 이름이면 경기 기록이 이 계정으로 자동 연동됩니다.
+          </span>
         </label>
 
         <label className="flex flex-col gap-1">

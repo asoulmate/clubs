@@ -50,7 +50,9 @@ export function UsersTab() {
     if (
       !window.confirm(
         next
-          ? `${user.name} 님을 활성화할까요?`
+          ? user.is_guest
+            ? `${user.name} 님(게스트)을 활성화할까요?`
+            : `${user.name} 님을 승인/활성화할까요?`
           : `${user.name} 님을 비활성화할까요? 비활성 사용자는 로그인 및 경기 등록이 제한됩니다.`,
       )
     )
@@ -92,20 +94,33 @@ export function UsersTab() {
               <div>
                 <p className="font-semibold">
                   {user.name}
-                  {!user.is_active && (
+                  {user.is_guest && (
+                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                      게스트
+                    </span>
+                  )}
+                  {!user.is_active && !user.is_guest && (
+                    <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+                      승인 대기/비활성
+                    </span>
+                  )}
+                  {!user.is_active && user.is_guest && (
                     <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
                       비활성
                     </span>
                   )}
                 </p>
-                <p className="text-xs text-gray-400">{AWARD_LEVEL_LABELS[user.award_level]}</p>
+                <p className="text-xs text-gray-400">
+                  {AWARD_LEVEL_LABELS[user.award_level]}
+                  {user.is_guest ? ' · 로그인 계정 없음' : ''}
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
-                {/* 역할 변경은 admin만 가능 (자기 자신 제외) — 최종 검증은 DB가 수행 */}
+                {/* 역할 변경은 admin만 가능 (자기 자신·게스트 제외) — 최종 검증은 DB가 수행 */}
                 <select
                   value={user.role}
-                  disabled={!canChangeRole || user.id === myProfile?.id}
+                  disabled={!canChangeRole || user.id === myProfile?.id || user.is_guest}
                   onChange={(e) => void changeRole(user, e.target.value as UserRole)}
                   aria-label={`${user.name} 권한`}
                   className="h-10 rounded-lg border border-gray-300 px-2 text-sm disabled:bg-gray-100 disabled:text-gray-400"
@@ -125,7 +140,7 @@ export function UsersTab() {
                     user.is_active ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
                   }`}
                 >
-                  {user.is_active ? '비활성화' : '활성화'}
+                  {user.is_active ? '비활성화' : user.is_guest ? '활성화' : '승인/활성화'}
                 </button>
               </div>
             </div>

@@ -13,7 +13,9 @@ insert into public.app_settings (key, value, description) values
   ('min_matches_for_ranking', '0',
    '공식 순위에 포함되기 위한 최소 확정 경기 수. 미달 사용자는 순위 없이 별도 표시'),
   ('allow_proxy_registration', 'true',
-   '다른 회원을 빈 슬롯에 대리 등록할 수 있는지 여부')
+   '다른 회원을 빈 슬롯에 대리 등록할 수 있는지 여부'),
+  ('require_signup_approval', 'false',
+   'true면 신규 가입 시 is_active=false로 생성되며, 관리자/서브관리자 활성화 후 이용 가능')
 on conflict (key) do nothing;
 
 -- ============================================================

@@ -141,6 +141,31 @@ $$;
 -- ------------------------------------------------------------
 -- 트리거: 회원가입 시 profiles 자동 생성
 -- ------------------------------------------------------------
+create or replace function public.transfer_profile_refs(
+  p_from uuid,
+  p_to uuid
+)
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+begin
+  update public.match_players set user_id = p_to where user_id = p_from;
+  update public.match_players set registered_by = p_to where registered_by = p_from;
+  update public.matches set created_by = p_to where created_by = p_from;
+  update public.matches set score_submitted_by = p_to where score_submitted_by = p_from;
+  update public.matches set confirmed_by = p_to where confirmed_by = p_from;
+  update public.score_confirmations set user_id = p_to where user_id = p_from;
+  update public.match_audit_logs set changed_by = p_to where changed_by = p_from;
+  update public.app_settings set updated_by = p_to where updated_by = p_from;
+
+  if to_regclass('public.unexcused_absences') is not null then
+    update public.unexcused_absences set user_id = p_to where user_id = p_from;
+    update public.unexcused_absences set registered_by = p_to where registered_by = p_from;
+  end if;
+end;
+$$;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql security definer
@@ -148,16 +173,51 @@ set search_path = public
 as $$
 declare
   v_award text := new.raw_user_meta_data ->> 'award_level';
+  v_name text;
+  v_award_level public.award_level;
+  v_require_approval boolean;
+  v_guest_id uuid;
 begin
-  insert into public.profiles (id, name, award_level)
+  v_name := coalesce(
+    nullif(trim(new.raw_user_meta_data ->> 'name'), ''),
+    split_part(new.email, '@', 1)
+  );
+
+  v_award_level := case
+    when v_award in ('open', 'national_rookie', 'local_rookie', 'none')
+      then v_award::public.award_level
+    else 'none'::public.award_level
+  end;
+
+  v_require_approval := coalesce(
+    (public.get_setting('require_signup_approval'))::boolean,
+    false
+  );
+
+  select id into v_guest_id
+  from public.profiles
+  where is_guest = true
+    and lower(trim(name)) = lower(trim(v_name))
+  order by
+    case when award_level = v_award_level then 0 else 1 end,
+    created_at asc
+  limit 1;
+
+  insert into public.profiles (id, name, award_level, role, is_active, is_guest)
   values (
     new.id,
-    coalesce(nullif(trim(new.raw_user_meta_data ->> 'name'), ''), split_part(new.email, '@', 1)),
-    case
-      when v_award in ('open', 'national_rookie', 'local_rookie', 'none') then v_award::public.award_level
-      else 'none'::public.award_level
-    end
+    v_name,
+    v_award_level,
+    'user',
+    not v_require_approval,
+    false
   );
+
+  if v_guest_id is not null then
+    perform public.transfer_profile_refs(v_guest_id, new.id);
+    delete from public.profiles where id = v_guest_id;
+  end if;
+
   return new;
 end;
 $$;
@@ -247,7 +307,7 @@ begin
   select * into v_target from public.profiles where id = p_user_id;
 
   if not found then
-    raise exception '회원가입된 사용자만 경기에 등록할 수 있습니다.';
+    raise exception '등록할 수 있는 사용자를 찾을 수 없습니다.';
   end if;
   if not v_target.is_active then
     raise exception '비활성화된 사용자는 경기에 등록할 수 없습니다.';
@@ -264,6 +324,50 @@ begin
         raise exception '이미 다른 사용자가 해당 자리에 등록되었습니다.';
       end if;
   end;
+end;
+$$;
+
+-- 게스트 프로필 생성 (이름 + 입상). 동일 이름·입상 활성 게스트가 있으면 재사용
+create or replace function public.create_guest_profile(
+  p_name text,
+  p_award_level public.award_level default 'none'
+)
+returns public.profiles
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_name text := trim(p_name);
+  v_row public.profiles;
+begin
+  perform public.assert_active_caller();
+
+  if v_name is null or char_length(v_name) < 1 or char_length(v_name) > 30 then
+    raise exception '게스트 이름은 1~30자로 입력해주세요.';
+  end if;
+
+  if p_award_level is null then
+    raise exception '입상 구분을 선택해주세요.';
+  end if;
+
+  select * into v_row
+  from public.profiles
+  where is_guest = true
+    and is_active = true
+    and lower(trim(name)) = lower(v_name)
+    and award_level = p_award_level
+  order by created_at asc
+  limit 1;
+
+  if found then
+    return v_row;
+  end if;
+
+  insert into public.profiles (id, name, award_level, role, is_active, is_guest)
+  values (gen_random_uuid(), v_name, p_award_level, 'user', true, true)
+  returning * into v_row;
+
+  return v_row;
 end;
 $$;
 
@@ -334,7 +438,8 @@ begin
   if v_match.status = 'canceled' then
     raise exception '취소된 경기에는 참가자를 등록할 수 없습니다.';
   end if;
-  if v_match.status not in ('open', 'ready') then
+  -- 일반 사용자: open/ready만 / 관리자·서브: 확정 포함 모든 비취소 상태 허용
+  if v_match.status not in ('open', 'ready') and not public.is_admin_or_sub() then
     raise exception '스코어 입력이 시작된 경기는 참가자를 변경할 수 없습니다.';
   end if;
 
@@ -411,6 +516,9 @@ begin
   select * into v_match from public.matches where id = p_match_id for update;
   if not found then
     raise exception '경기를 찾을 수 없습니다.';
+  end if;
+  if v_match.status = 'canceled' then
+    raise exception '취소된 경기의 참가자는 변경할 수 없습니다.';
   end if;
 
   select coalesce(jsonb_agg(jsonb_build_object('position', position, 'user_id', user_id)), '[]'::jsonb)

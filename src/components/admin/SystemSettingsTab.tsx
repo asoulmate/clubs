@@ -132,6 +132,25 @@ export function SystemSettingsTab() {
             <option value="false">허용 안 함</option>
           </select>
         </div>
+
+        <div className={rowClass}>
+          <div>
+            <p className="font-semibold">신규 가입 승인</p>
+            <p className="text-xs text-gray-400">
+              활성화 시 신규 회원은 승인 대기(비활성) 상태이며, 관리자/서브관리자가 사용자 탭에서
+              활성화해야 이용 가능
+            </p>
+          </div>
+          <select
+            value={settings.require_signup_approval ? 'true' : 'false'}
+            disabled={readOnly || saving}
+            onChange={(e) => void save('require_signup_approval', e.target.value === 'true')}
+            className={selectClass}
+          >
+            <option value="false">비활성화 (즉시 이용)</option>
+            <option value="true">활성화 (승인 필요)</option>
+          </select>
+        </div>
       </div>
     </div>
   )

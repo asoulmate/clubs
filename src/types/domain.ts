@@ -34,6 +34,8 @@ export interface Profile {
   award_level: AwardLevel
   role: UserRole
   is_active: boolean
+  /** true면 비밀번호 미설정 게스트 (회원가입 시 실계정으로 연동 가능) */
+  is_guest: boolean
   created_at: string
   updated_at: string
 }
@@ -96,6 +98,8 @@ export interface AppSettings {
   score_max: number
   min_matches_for_ranking: number
   allow_proxy_registration: boolean
+  /** true면 신규 가입 시 비활성(승인 대기), 관리자/서브가 활성화해야 이용 가능 */
+  require_signup_approval: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -104,6 +108,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   score_max: 99,
   min_matches_for_ranking: 0,
   allow_proxy_registration: true,
+  require_signup_approval: false,
 }
 
 // ------------------------------------------------------------

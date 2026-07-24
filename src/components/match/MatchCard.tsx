@@ -22,6 +22,7 @@ import {
   canDeleteMatch,
   canRemovePlayer,
   canSubmitScore,
+  isAdminOrSub,
   isParticipant,
 } from '../../utils/permissions'
 import { winnerTeam } from '../../utils/score'
@@ -89,7 +90,11 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
   }
 
   const handleRemove = (position: PlayerPosition) => {
-    if (!window.confirm('이 참가자를 자리에서 제외할까요?')) return
+    const isConfirmed = match.status === 'confirmed'
+    const message = isConfirmed
+      ? '확정된 경기에서 이 참가자를 제외할까요?\n제외 후 빈 자리에 다른 선수를 등록할 수 있습니다.'
+      : '이 참가자를 자리에서 제외할까요?'
+    if (!window.confirm(message)) return
     void run(() => removePlayer(match.id, position), '참가자가 제외되었습니다.')
   }
 
@@ -107,13 +112,16 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
   /** 슬롯 1칸 렌더링 (이름 가운데 정렬, 제외 버튼은 오른쪽에 겹침) */
   const renderSlot = (position: PlayerPosition) => {
     const player = playerAt(position)
+    const canFillEmpty =
+      !isCanceled &&
+      (match.status === 'open' || match.status === 'ready' || isAdminOrSub(profile))
 
     if (!player) {
       return (
         <button
           key={position}
           type="button"
-          disabled={isCanceled || busy}
+          disabled={!canFillEmpty || busy}
           onClick={() => setRegisterPosition(position)}
           className="flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-dashed border-gray-300 px-1 text-sm font-medium text-gray-400 active:bg-gray-50 disabled:opacity-40"
         >
@@ -135,6 +143,11 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
           awardLevel={player.profile?.award_level}
           className="w-full justify-center text-center no-underline"
         />
+        {player.profile?.is_guest && (
+          <span className="pointer-events-none absolute left-0.5 top-0.5 rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-800">
+            G
+          </span>
+        )}
         {removable && (
           <button
             type="button"

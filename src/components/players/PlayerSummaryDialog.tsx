@@ -69,8 +69,16 @@ export function PlayerSummaryDialog() {
                   {AWARD_LEVEL_ICONS[profile.award_level]}
                 </span>
               ) : null}
+              {profile.is_guest && (
+                <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                  게스트
+                </span>
+              )}
             </p>
-            <p className="text-sm text-gray-500">{AWARD_LEVEL_LABELS[profile.award_level]}</p>
+            <p className="text-sm text-gray-500">
+              {AWARD_LEVEL_LABELS[profile.award_level]}
+              {profile.is_guest ? ' · 미가입(게스트)' : ''}
+            </p>
           </div>
 
           <div className="grid grid-cols-4 gap-2 text-center">

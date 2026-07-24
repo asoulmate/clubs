@@ -6,7 +6,7 @@ import type { MatchAuditLog, PlayerPosition, Profile, UserRole } from '../types/
 // 최종 권한 검증은 전부 DB(RPC + 트리거)에서 수행한다.
 // ============================================================
 
-/** 전체 사용자 목록 (비활성 포함, 이름 검색 지원) */
+/** 전체 사용자 목록 (비활성·게스트 포함, 이름 검색 지원) */
 export async function fetchAllUsers(search = ''): Promise<Profile[]> {
   let builder = supabase.from('profiles').select('*').order('name', { ascending: true })
 
@@ -17,7 +17,7 @@ export async function fetchAllUsers(search = ''): Promise<Profile[]> {
 
   const { data, error } = await builder
   if (error) throw error
-  return data ?? []
+  return (data ?? []).map((row) => ({ ...row, is_guest: Boolean(row.is_guest) }))
 }
 
 /** 사용자 역할/활성 상태 변경 */

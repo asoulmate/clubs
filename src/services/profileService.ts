@@ -5,6 +5,11 @@ import type { AwardLevel, Profile } from '../types/domain'
 // 사용자 프로필 데이터 접근 계층
 // ============================================================
 
+/** DB 행 → Profile (구스키마 is_guest 누락 대비) */
+function toProfile(row: Profile & { is_guest?: boolean | null }): Profile {
+  return { ...row, is_guest: Boolean(row.is_guest) }
+}
+
 /** 내 프로필 조회 */
 export async function fetchMyProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
@@ -14,7 +19,7 @@ export async function fetchMyProfile(userId: string): Promise<Profile | null> {
     .maybeSingle()
 
   if (error) throw error
-  return data
+  return data ? toProfile(data) : null
 }
 
 /** 프로필 단건 조회 (이름 클릭 요약 등) */
@@ -26,12 +31,12 @@ export async function fetchProfileById(userId: string): Promise<Profile | null> 
     .maybeSingle()
 
   if (error) throw error
-  return data
+  return data ? toProfile(data) : null
 }
 
 /**
  * 이름 부분 검색 (자동완성용)
- * 비활성 사용자는 기본적으로 검색 결과에서 제외한다.
+ * 비활성 사용자는 기본적으로 검색 결과에서 제외한다. (게스트 포함)
  */
 export async function searchActiveProfiles(query: string, limit = 20): Promise<Profile[]> {
   let builder = supabase
@@ -48,7 +53,20 @@ export async function searchActiveProfiles(query: string, limit = 20): Promise<P
 
   const { data, error } = await builder
   if (error) throw error
-  return data ?? []
+  return (data ?? []).map(toProfile)
+}
+
+/**
+ * 게스트 선수 수기 등록 (이름 + 입상).
+ * 동일 이름·입상 활성 게스트가 있으면 DB에서 재사용한다.
+ */
+export async function createGuestProfile(name: string, awardLevel: AwardLevel): Promise<Profile> {
+  const { data, error } = await supabase.rpc('create_guest_profile', {
+    p_name: name.trim(),
+    p_award_level: awardLevel,
+  })
+  if (error) throw error
+  return toProfile(data as Profile)
 }
 
 /** 내 프로필 수정 (이름, 입상 구분만 — role/is_active는 DB 트리거가 차단) */
