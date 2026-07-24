@@ -227,6 +227,60 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- ------------------------------------------------------------
+-- 트리거: Auth 사용자 삭제 시 profiles 정리
+--  - 경기/로그 등 참조가 있으면 비활성화(기록 보존, 검색·등록에서 제외)
+--  - 참조가 없으면 profiles 행 삭제
+-- ------------------------------------------------------------
+create or replace function public.handle_auth_user_deleted()
+returns trigger
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_has_refs boolean;
+begin
+  if not exists (select 1 from public.profiles where id = old.id) then
+    return old;
+  end if;
+
+  v_has_refs :=
+    exists (select 1 from public.match_players where user_id = old.id or registered_by = old.id)
+    or exists (
+      select 1 from public.matches
+      where created_by = old.id
+         or score_submitted_by = old.id
+         or confirmed_by = old.id
+    )
+    or exists (select 1 from public.score_confirmations where user_id = old.id)
+    or exists (select 1 from public.match_audit_logs where changed_by = old.id)
+    or exists (select 1 from public.app_settings where updated_by = old.id)
+    or (
+      to_regclass('public.unexcused_absences') is not null
+      and exists (
+        select 1 from public.unexcused_absences
+        where user_id = old.id or registered_by = old.id
+      )
+    );
+
+  if v_has_refs then
+    update public.profiles
+    set is_active = false,
+        updated_at = now()
+    where id = old.id;
+  else
+    delete from public.profiles where id = old.id;
+  end if;
+
+  return old;
+end;
+$$;
+
+drop trigger if exists on_auth_user_deleted on auth.users;
+create trigger on_auth_user_deleted
+  after delete on auth.users
+  for each row execute function public.handle_auth_user_deleted();
+
+-- ------------------------------------------------------------
 -- 트리거: 일반 사용자가 자신의 role / is_active 를 변경하는 것을 차단
 -- (관리자 권한 검증은 DB에서 실제 역할을 조회하여 판단)
 -- ------------------------------------------------------------
