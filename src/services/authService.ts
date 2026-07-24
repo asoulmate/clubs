@@ -55,6 +55,28 @@ export async function updatePassword(newPassword: string): Promise<void> {
   if (error) throw error
 }
 
+/**
+ * 로그인 상태에서 비밀번호 변경
+ * 현재 비밀번호로 재인증한 뒤 새 비밀번호로 갱신한다.
+ */
+export async function changePassword(
+  email: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  // 현재 비밀번호 확인 (틀리면 여기서 오류)
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email,
+    password: currentPassword,
+  })
+  if (verifyError) {
+    throw new Error('현재 비밀번호가 올바르지 않습니다.')
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
 /** 로그아웃 */
 export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut()
