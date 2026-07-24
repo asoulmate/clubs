@@ -44,8 +44,9 @@ const TEAM_POSITIONS: Record<TeamSide, PlayerPosition[]> = {
 
 // 상태별 카드 테두리 + 부드러운 배경색 (색상만으로 구분하지 않고 배지 텍스트·아이콘과 함께 사용)
 const STATUS_CARD_STYLES: Record<MatchStatus, string> = {
+  // 편성 완료: 배경 없이 테두리만 — 다음 액션(경기 시작)이 필요하다는 느낌
   open: 'border-gray-200 bg-white',
-  ready: 'border-indigo-300 bg-indigo-50/70',
+  ready: 'border-indigo-400 bg-white',
   in_progress: 'border-amber-300 bg-amber-50/80',
   submitted: 'border-orange-300 bg-orange-50/70',
   confirmed: 'border-emerald-300 bg-emerald-50/70',

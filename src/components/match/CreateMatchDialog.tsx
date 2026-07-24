@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AWARD_LEVEL_LABELS } from '../../constants/labels'
-import { createMatch } from '../../services/matchService'
+import { createMatch, fetchInProgressUserIds } from '../../services/matchService'
 import { useAuthStore } from '../../stores/authStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { PlayerPosition, Profile } from '../../types/domain'
@@ -26,7 +26,7 @@ const SLOT_INFO: { position: SelectablePosition; label: string }[] = [
 /**
  * 신규 경기 생성 다이얼로그
  *  - 생성자는 자동으로 A팀 1번으로 등록됨
- *  - 나머지 3자리는 선택 사항 (비워두면 빈 슬롯으로 생성)
+ *  - 경기 중(in_progress)인 선수는 검색에서 제외 (최종 검증은 DB)
  */
 export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialogProps) {
   const profile = useAuthStore((s) => s.profile)
@@ -34,8 +34,19 @@ export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialo
   const [selected, setSelected] = useState<Partial<Record<SelectablePosition, Profile>>>({})
   const [picking, setPicking] = useState<SelectablePosition | null>(null)
   const [saving, setSaving] = useState(false)
+  const [inProgressIds, setInProgressIds] = useState<string[]>([])
 
-  const excludeIds = [profile?.id ?? '', ...Object.values(selected).map((p) => p.id)]
+  useEffect(() => {
+    void fetchInProgressUserIds()
+      .then(setInProgressIds)
+      .catch(() => setInProgressIds([]))
+  }, [])
+
+  const excludeIds = [
+    profile?.id ?? '',
+    ...Object.values(selected).map((p) => p.id),
+    ...inProgressIds,
+  ]
 
   const handleCreate = async () => {
     setSaving(true)
@@ -57,6 +68,11 @@ export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialo
           {formatDateKoreanFull(date)} 경기 · <strong>{profile?.name}</strong> 님이 A팀 1번으로
           자동 등록됩니다. 나머지 자리는 비워두고 나중에 채울 수도 있습니다.
         </p>
+        {inProgressIds.length > 0 && (
+          <p className="text-xs text-amber-700">
+            * 현재 다른 경기를 진행 중인 선수는 목록에 표시되지 않습니다.
+          </p>
+        )}
 
         {SLOT_INFO.map(({ position, label }) => {
           const pick = selected[position]

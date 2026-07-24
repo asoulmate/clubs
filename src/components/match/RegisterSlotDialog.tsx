@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { POSITION_LABELS } from '../../constants/labels'
-import { registerPlayer } from '../../services/matchService'
+import { fetchInProgressUserIds, registerPlayer } from '../../services/matchService'
 import { useAuthStore } from '../../stores/authStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useToastStore } from '../../stores/toastStore'
@@ -23,9 +23,17 @@ export function RegisterSlotDialog({ match, position, onClose, onChanged }: Regi
   const settings = useSettingsStore((s) => s.settings)
   const showToast = useToastStore((s) => s.show)
   const [saving, setSaving] = useState(false)
+  const [inProgressIds, setInProgressIds] = useState<string[]>([])
+
+  useEffect(() => {
+    void fetchInProgressUserIds()
+      .then(setInProgressIds)
+      .catch(() => setInProgressIds([]))
+  }, [])
 
   const alreadyInMatch = match.players.some((p) => p.user_id === profile?.id)
   const canProxy = settings.allow_proxy_registration || isAdminOrSub(profile)
+  const iAmInProgress = profile ? inProgressIds.includes(profile.id) : false
 
   const register = async (userId?: string) => {
     setSaving(true)
@@ -46,11 +54,11 @@ export function RegisterSlotDialog({ match, position, onClose, onChanged }: Regi
         {!alreadyInMatch && (
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || iAmInProgress}
             onClick={() => void register()}
             className="h-12 rounded-xl bg-green-700 font-bold text-white active:bg-green-800 disabled:opacity-50"
           >
-            나를 이 자리에 등록
+            {iAmInProgress ? '다른 경기 진행 중 — 등록 불가' : '나를 이 자리에 등록'}
           </button>
         )}
 
@@ -59,8 +67,11 @@ export function RegisterSlotDialog({ match, position, onClose, onChanged }: Regi
             <p className="text-sm font-medium text-gray-600">
               {alreadyInMatch ? '다른 회원을 등록합니다.' : '또는 다른 회원을 대신 등록'}
             </p>
+            <p className="text-xs text-amber-700">
+              * 현재 다른 경기를 진행 중인 선수는 목록에 표시되지 않습니다.
+            </p>
             <PlayerSearchInput
-              excludeIds={match.players.map((p) => p.user_id)}
+              excludeIds={[...match.players.map((p) => p.user_id), ...inProgressIds]}
               onSelect={(selected: Profile) => void register(selected.id)}
               autoFocus={alreadyInMatch}
             />

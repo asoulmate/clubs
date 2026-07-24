@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Spinner } from '../components/common/Spinner'
-import { AWARD_LEVEL_LABELS } from '../constants/labels'
+import { AWARD_LEVEL_ICONS, AWARD_LEVEL_LABELS } from '../constants/labels'
 import { fetchProfileById } from '../services/profileService'
 import {
   fetchMonthlyTrend,
@@ -104,7 +104,14 @@ export function PlayerDetailPage() {
     <div className="flex flex-col gap-5">
       {/* 프로필 헤더 */}
       <div>
-        <h1 className="text-2xl font-extrabold">{profile.name}</h1>
+        <h1 className="text-2xl font-extrabold">
+          {profile.name}
+          {AWARD_LEVEL_ICONS[profile.award_level] ? (
+            <span className="ml-1" aria-hidden="true">
+              {AWARD_LEVEL_ICONS[profile.award_level]}
+            </span>
+          ) : null}
+        </h1>
         <p className="text-sm text-gray-500">
           {AWARD_LEVEL_LABELS[profile.award_level]}
           {!profile.is_active && ' · 비활성'}

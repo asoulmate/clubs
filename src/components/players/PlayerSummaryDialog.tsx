@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AWARD_LEVEL_LABELS } from '../../constants/labels'
+import { AWARD_LEVEL_ICONS, AWARD_LEVEL_LABELS } from '../../constants/labels'
 import { fetchProfileById } from '../../services/profileService'
 import { fetchPlayerSummary } from '../../services/statsService'
 import { usePlayerSummaryStore } from '../../stores/playerSummaryStore'
@@ -62,7 +62,14 @@ export function PlayerSummaryDialog() {
       ) : (
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-xl font-extrabold">{profile.name}</p>
+            <p className="text-xl font-extrabold">
+              {profile.name}
+              {AWARD_LEVEL_ICONS[profile.award_level] ? (
+                <span className="ml-1" aria-hidden="true">
+                  {AWARD_LEVEL_ICONS[profile.award_level]}
+                </span>
+              ) : null}
+            </p>
             <p className="text-sm text-gray-500">{AWARD_LEVEL_LABELS[profile.award_level]}</p>
           </div>
 
