@@ -151,6 +151,8 @@ export interface MonthlyTrendRow {
   matches_played: number
   wins: number
   losses: number
+  /** 해당 월에 경기에 참가한 날짜 수 */
+  days_participated: number
 }
 
 /** get_player_recent_matches 반환 행 */

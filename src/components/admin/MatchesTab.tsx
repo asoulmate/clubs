@@ -5,7 +5,7 @@ import {
   adminSetPlayer,
   adminUpdateScore,
 } from '../../services/adminService'
-import { cancelMatch, fetchMatchesByDate } from '../../services/matchService'
+import { cancelMatch, deleteMatch, fetchMatchesByDate } from '../../services/matchService'
 import { useToastStore } from '../../stores/toastStore'
 import type { MatchWithPlayers, PlayerPosition } from '../../types/domain'
 import { ALL_POSITIONS } from '../../types/domain'
@@ -244,6 +244,22 @@ export function MatchesTab() {
     }
   }
 
+  const handleDelete = async (match: MatchWithPlayers) => {
+    if (
+      !window.confirm(
+        '이 경기를 완전히 삭제할까요?\n참가자·스코어·수정 이력이 모두 삭제되며 되돌릴 수 없습니다.',
+      )
+    )
+      return
+    try {
+      await deleteMatch(match.id)
+      showToast('경기가 삭제되었습니다.', 'success')
+      void load()
+    } catch (err) {
+      showToast(toErrorMessage(err), 'error')
+    }
+  }
+
   const teamNames = (match: MatchWithPlayers, team: 'A' | 'B') =>
     match.players
       .filter((p) => p.position.startsWith(team))
@@ -310,6 +326,13 @@ export function MatchesTab() {
                     취소
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => void handleDelete(match)}
+                  className="h-10 rounded-lg bg-red-600 px-3 text-sm font-bold text-white"
+                >
+                  삭제
+                </button>
               </div>
 
               <p className="mt-2 text-xs text-gray-400">

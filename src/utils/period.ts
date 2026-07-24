@@ -10,19 +10,19 @@ import { parseDateString } from './kst'
 // ============================================================
 // 기간 계산 유틸
 //  - 주간: 월요일 ~ 일요일
-//  - 분기: 1~3월 / 4~6월 / 7~9월 / 10~12월
+//  - 기간 지정(custom): 사용자가 입력한 시작일 ~ 종료일
 //  - 누적: 전체 기간
 // ============================================================
 
-export type PeriodType = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'all'
+export type PeriodType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'all' | 'custom'
 
 export const PERIOD_OPTIONS: { value: PeriodType; label: string }[] = [
   { value: 'daily', label: '일간' },
   { value: 'weekly', label: '주간' },
   { value: 'monthly', label: '월간' },
-  { value: 'quarterly', label: '분기' },
   { value: 'yearly', label: '연간' },
   { value: 'all', label: '누적' },
+  { value: 'custom', label: '기간 지정' },
 ]
 
 export interface PeriodRange {
@@ -36,11 +36,17 @@ export interface PeriodRange {
 
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd')
 
-/** 기준 날짜(anchor)와 기간 유형으로 조회 범위를 계산한다 */
-export function getPeriodRange(period: PeriodType, anchorDateStr: string): PeriodRange {
+/**
+ * 기준 날짜(anchor)와 기간 유형으로 조회 범위를 계산한다.
+ * custom인 경우 customRange(사용자 입력 시작/종료일)를 사용한다.
+ */
+export function getPeriodRange(
+  period: PeriodType,
+  anchorDateStr: string,
+  customRange?: { from: string; to: string },
+): PeriodRange {
   const anchor = parseDateString(anchorDateStr)
   const year = anchor.getFullYear()
-  const month = anchor.getMonth() // 0-based
 
   switch (period) {
     case 'daily':
@@ -63,18 +69,19 @@ export function getPeriodRange(period: PeriodType, anchorDateStr: string): Perio
       return { from: fmt(start), to: fmt(end), label: format(anchor, 'yyyy년 M월') }
     }
 
-    case 'quarterly': {
-      const quarter = Math.floor(month / 3) // 0~3
-      const start = new Date(year, quarter * 3, 1)
-      const end = endOfMonth(new Date(year, quarter * 3 + 2, 1))
-      return { from: fmt(start), to: fmt(end), label: `${year}년 ${quarter + 1}분기` }
-    }
-
     case 'yearly':
       return { from: `${year}-01-01`, to: `${year}-12-31`, label: `${year}년` }
 
     case 'all':
       return { from: '1900-01-01', to: '2999-12-31', label: '전체 누적' }
+
+    case 'custom': {
+      // 사용자가 입력한 날짜 범위 (시작일이 종료일보다 늦으면 서로 교환)
+      let from = customRange?.from ?? anchorDateStr
+      let to = customRange?.to ?? anchorDateStr
+      if (from > to) [from, to] = [to, from]
+      return { from, to, label: `${from} ~ ${to}` }
+    }
   }
 }
 

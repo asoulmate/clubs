@@ -113,3 +113,9 @@ export async function cancelMatch(matchId: string, reason?: string): Promise<voi
   })
   if (error) throw error
 }
+
+/** 경기 삭제 (개설자: 확정 전 / 관리자·서브 관리자: 항상) */
+export async function deleteMatch(matchId: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_match', { p_match_id: matchId })
+  if (error) throw error
+}

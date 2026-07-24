@@ -52,6 +52,13 @@ export function canCancelMatch(profile: Profile | null, match: MatchWithPlayers)
   )
 }
 
+/** 경기 삭제 버튼을 보여줄 수 있는지 (개설자: 확정 전 / 관리자: 항상) */
+export function canDeleteMatch(profile: Profile | null, match: MatchWithPlayers): boolean {
+  if (!profile) return false
+  if (isAdminOrSub(profile)) return true
+  return match.created_by === profile.id && match.status !== 'confirmed'
+}
+
 /** 슬롯의 참가자를 제거할 수 있는지 */
 export function canRemovePlayer(
   profile: Profile | null,

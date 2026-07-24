@@ -112,7 +112,7 @@ export function PlayerDetailPage() {
       </div>
 
       {/* 누적 통계 카드 */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <StatCard label="총 경기" value={`${stats?.matches_played ?? 0}`} />
         <StatCard label="승" value={`${stats?.wins ?? 0}`} />
         <StatCard label="패" value={`${stats?.losses ?? 0}`} />
@@ -120,6 +120,7 @@ export function PlayerDetailPage() {
         <StatCard label="득점" value={`${stats?.points_for ?? 0}`} />
         <StatCard label="실점" value={`${stats?.points_against ?? 0}`} />
         <StatCard label="득실차" value={pointDiff > 0 ? `+${pointDiff}` : `${pointDiff}`} />
+        <StatCard label="누적 참가일" value={`${stats?.days_participated ?? 0}일`} />
         <StatCard label="참가율" value={`${participationRate.toFixed(0)}%`} />
       </div>
 
@@ -160,26 +161,59 @@ export function PlayerDetailPage() {
         )}
       </section>
 
-      {/* 월별 경기 추이 (간단한 막대 그래프) */}
+      {/* 월별 경기 수 + 참가일 통합 막대 그래프 */}
       <section>
-        <h2 className="mb-2 text-lg font-bold">월별 경기 추이</h2>
+        <h2 className="mb-2 text-lg font-bold">월별 경기·참가 추이</h2>
         {trend.length === 0 ? (
           <p className="rounded-xl bg-white py-6 text-center text-sm text-gray-500 shadow-sm">
             최근 12개월 내 확정된 경기가 없습니다.
           </p>
         ) : (
-          <div className="flex items-end gap-1.5 overflow-x-auto rounded-2xl bg-white p-4 shadow-sm">
-            {trend.map((t) => (
-              <div key={t.month} className="flex min-w-10 flex-1 flex-col items-center gap-1">
-                <span className="text-xs font-semibold tabular-nums">{t.matches_played}</span>
-                <div
-                  className="w-full rounded-t-md bg-green-600"
-                  style={{ height: `${(t.matches_played / maxTrendMatches) * 80 + 4}px` }}
-                  title={`${t.month}: ${t.matches_played}경기 (${t.wins}승 ${t.losses}패)`}
-                />
-                <span className="text-[10px] text-gray-400">{t.month.slice(2).replace('-', '.')}</span>
-              </div>
-            ))}
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            {/* 범례 */}
+            <div className="mb-3 flex items-center gap-4 text-xs text-gray-600">
+              <span className="flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-sm bg-green-600" aria-hidden="true" />
+                경기 수
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-sm bg-sky-500" aria-hidden="true" />
+                참가일
+              </span>
+            </div>
+
+            <div className="flex items-end gap-2 overflow-x-auto">
+              {trend.map((t) => (
+                <div key={t.month} className="flex min-w-12 flex-1 flex-col items-center gap-1">
+                  {/* 경기 수 / 참가일 막대를 나란히 표시 */}
+                  <div className="flex w-full items-end justify-center gap-0.5">
+                    <div className="flex flex-col items-center">
+                      <span className="text-[11px] font-semibold tabular-nums text-green-700">
+                        {t.matches_played}
+                      </span>
+                      <div
+                        className="w-4 rounded-t-md bg-green-600"
+                        style={{ height: `${(t.matches_played / maxTrendMatches) * 80 + 4}px` }}
+                        title={`${t.month}: ${t.matches_played}경기 (${t.wins}승 ${t.losses}패)`}
+                      />
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-[11px] font-semibold tabular-nums text-sky-600">
+                        {t.days_participated}
+                      </span>
+                      <div
+                        className="w-4 rounded-t-md bg-sky-500"
+                        style={{ height: `${(t.days_participated / maxTrendMatches) * 80 + 4}px` }}
+                        title={`${t.month}: ${t.days_participated}일 참가`}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-gray-400">
+                    {t.month.slice(2).replace('-', '.')}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </section>

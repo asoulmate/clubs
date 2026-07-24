@@ -35,6 +35,7 @@
    2. `supabase/migrations/02_functions.sql` — 트리거·RPC 함수
    3. `supabase/migrations/03_rls.sql` — RLS 정책
    4. `supabase/migrations/04_seed.sql` — 운영 설정 기본값
+   5. `supabase/migrations/05_updates.sql` — 경기 삭제 RPC, 월별 추이 참가일
 3. 첫 계정 가입 후, SQL Editor에서 관리자로 지정합니다.
 
    ```sql

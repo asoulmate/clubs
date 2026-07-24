@@ -1,12 +1,25 @@
 import { useState } from 'react'
-import { cancelMatch, confirmScore, removePlayer, startMatch } from '../../services/matchService'
+import {
+  cancelMatch,
+  confirmScore,
+  deleteMatch,
+  removePlayer,
+  startMatch,
+} from '../../services/matchService'
 import { useAuthStore } from '../../stores/authStore'
 import { useToastStore } from '../../stores/toastStore'
-import type { MatchPlayer, MatchWithPlayers, PlayerPosition, TeamSide } from '../../types/domain'
+import type {
+  MatchPlayer,
+  MatchStatus,
+  MatchWithPlayers,
+  PlayerPosition,
+  TeamSide,
+} from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 import {
   canCancelMatch,
   canConfirmScore,
+  canDeleteMatch,
   canRemovePlayer,
   canSubmitScore,
   isParticipant,
@@ -29,9 +42,19 @@ const TEAM_POSITIONS: Record<TeamSide, PlayerPosition[]> = {
   B: ['B1', 'B2'],
 }
 
+// 상태별 카드 테두리/배경 하이라이트 (색상 + 배지 텍스트·아이콘을 함께 사용)
+const STATUS_CARD_STYLES: Record<MatchStatus, string> = {
+  open: 'border-gray-200',
+  ready: 'border-indigo-400',
+  in_progress: 'border-amber-400 ring-2 ring-amber-100',
+  submitted: 'border-orange-400 ring-2 ring-orange-100',
+  confirmed: 'border-green-500 bg-green-50/60',
+  canceled: 'border-gray-200 opacity-60',
+}
+
 /**
- * 경기 카드 (모바일 우선)
- *  경기 번호·상태 / A팀 선수·점수 / VS / B팀 점수·선수 / 액션 버튼
+ * 경기 카드 (모바일에서 많은 경기를 한 화면에 보기 위한 압축 레이아웃)
+ *  [A팀 이름 2줄(가운데)] [A점수] : [B점수] [B팀 이름 2줄(가운데)]
  */
 export function MatchCard({ match, index, onChanged }: MatchCardProps) {
   const profile = useAuthStore((s) => s.profile)
@@ -74,7 +97,13 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
     void run(() => cancelMatch(match.id), '경기가 취소되었습니다.')
   }
 
-  /** 슬롯 1칸 렌더링 */
+  const handleDelete = () => {
+    if (!window.confirm('이 경기를 완전히 삭제할까요? 참가자와 스코어 기록이 모두 사라지며 되돌릴 수 없습니다.'))
+      return
+    void run(() => deleteMatch(match.id), '경기가 삭제되었습니다.')
+  }
+
+  /** 슬롯 1칸 렌더링 (이름 가운데 정렬, 제외 버튼은 오른쪽에 겹침) */
   const renderSlot = (position: PlayerPosition) => {
     const player = playerAt(position)
 
@@ -85,97 +114,115 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
           type="button"
           disabled={isCanceled || busy}
           onClick={() => setRegisterPosition(position)}
-          className="flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-dashed border-gray-300 px-2 text-sm font-medium text-gray-400 active:bg-gray-50 disabled:opacity-40"
+          className="flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-dashed border-gray-300 px-1 text-sm font-medium text-gray-400 active:bg-gray-50 disabled:opacity-40"
         >
           + 빈 자리
         </button>
       )
     }
 
+    const removable =
+      !isCanceled &&
+      profile !== null &&
+      canRemovePlayer(profile, match, player.user_id, player.registered_by)
+
     return (
-      <div
-        key={position}
-        className="flex min-h-11 w-full items-center justify-between gap-1 rounded-xl bg-gray-50 px-2"
-      >
-        <PlayerNameButton userId={player.user_id} name={player.profile?.name ?? '(알 수 없음)'} />
-        {!isCanceled &&
-          profile &&
-          canRemovePlayer(profile, match, player.user_id, player.registered_by) && (
-            <button
-              type="button"
-              onClick={() => handleRemove(position)}
-              aria-label={`${player.profile?.name ?? ''} 제외`}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 active:bg-gray-200"
-            >
-              ×
-            </button>
-          )}
+      <div key={position} className="relative flex min-h-11 w-full items-center rounded-xl bg-gray-50">
+        <PlayerNameButton
+          userId={player.user_id}
+          name={player.profile?.name ?? '(알 수 없음)'}
+          className="w-full text-center"
+        />
+        {removable && (
+          <button
+            type="button"
+            onClick={() => handleRemove(position)}
+            aria-label={`${player.profile?.name ?? ''} 제외`}
+            className="absolute right-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 active:bg-gray-200"
+          >
+            ×
+          </button>
+        )}
       </div>
     )
   }
 
-  /** 팀 점수 표시 */
+  /** 팀 점수 표시 (A팀은 이름 오른쪽, B팀은 이름 왼쪽에 배치됨) */
   const renderScore = (team: TeamSide) => {
     const score = team === 'A' ? match.team_a_score : match.team_b_score
     const isWinner = winner === team
     return (
-      <p
-        className={`text-center text-4xl font-extrabold tabular-nums ${
-          isWinner ? 'text-green-700' : 'text-gray-800'
-        } ${score === null ? 'text-gray-300' : ''}`}
-      >
-        {score ?? '-'}
+      <div className="flex flex-col items-center">
+        <span
+          className={`text-4xl font-extrabold tabular-nums ${
+            score === null ? 'text-gray-300' : isWinner ? 'text-green-700' : 'text-gray-800'
+          }`}
+        >
+          {score ?? '-'}
+        </span>
         {isWinner && (
-          <span className="ml-1 align-middle text-base" aria-label="승리">
-            🏆
+          <span className="text-xs font-bold text-green-700" aria-label="승리">
+            🏆 승
           </span>
         )}
-      </p>
+      </div>
     )
   }
 
   return (
     <article
-      className={`rounded-2xl border border-gray-100 bg-white p-4 shadow-sm ${isCanceled ? 'opacity-60' : ''}`}
+      className={`rounded-2xl border-2 bg-white p-3 shadow-sm ${STATUS_CARD_STYLES[match.status]}`}
     >
-      {/* 헤더: 경기 번호 + 상태 + 취소 버튼 */}
-      <div className="mb-3 flex items-center justify-between">
+      {/* 헤더: 경기 번호 + 상태 + 삭제/취소 */}
+      <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="font-bold text-gray-700">#{index}</span>
           <StatusBadge status={match.status} />
         </div>
-        {profile && canCancelMatch(profile, match) && (
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={busy}
-            className="min-h-9 rounded-lg px-2 text-sm text-gray-400 underline active:text-red-600"
-          >
-            경기 취소
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {profile && canCancelMatch(profile, match) && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={busy}
+              className="min-h-9 rounded-lg px-2 text-sm text-gray-400 underline active:text-red-600"
+            >
+              취소
+            </button>
+          )}
+          {profile && canDeleteMatch(profile, match) && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={busy}
+              className="min-h-9 rounded-lg px-2 text-sm text-red-400 underline active:text-red-600"
+            >
+              삭제
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* 팀 편성 + 점수 */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2">
-        <div className="flex flex-col gap-2">
+      {/* 팀 편성 + 점수: A팀 이름 | A점수 : B점수 | B팀 이름 */}
+      <div className="grid grid-cols-[1fr_auto_auto_auto_1fr] items-center gap-x-2">
+        <div className="flex flex-col gap-1.5">
           <p className="text-center text-xs font-bold text-gray-500">A팀</p>
           {TEAM_POSITIONS.A.map(renderSlot)}
-          {renderScore('A')}
         </div>
 
-        <div className="flex h-full items-center pt-8 text-sm font-bold text-gray-300">VS</div>
+        {renderScore('A')}
+        <span className="text-xl font-bold text-gray-300">:</span>
+        {renderScore('B')}
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           <p className="text-center text-xs font-bold text-gray-500">B팀</p>
           {TEAM_POSITIONS.B.map(renderSlot)}
-          {renderScore('B')}
         </div>
       </div>
 
       {/* 액션 버튼 */}
       {!isCanceled && profile && (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2.5 flex flex-wrap gap-2">
           {match.status === 'ready' && isParticipant(profile.id, match) && (
             <button
               type="button"

@@ -10,6 +10,7 @@ SQL Editor에서 순서대로 실행:
 2. `supabase/migrations/02_functions.sql`
 3. `supabase/migrations/03_rls.sql`
 4. `supabase/migrations/04_seed.sql`
+5. `supabase/migrations/05_updates.sql` (경기 삭제, 월별 추이 참가일)
 
 ### 1-2. 최초 관리자 지정
 

@@ -5,24 +5,30 @@ import { RankingTable } from '../components/stats/RankingTable'
 import { fetchPlayerStats } from '../services/statsService'
 import { useSettingsStore } from '../stores/settingsStore'
 import type { PlayerStatsRow } from '../types/domain'
-import { todayKst } from '../utils/kst'
+import { addDaysToDateString, todayKst } from '../utils/kst'
 import { getPeriodRange, PERIOD_OPTIONS, type PeriodType } from '../utils/period'
 import { buildRanking } from '../utils/ranking'
 
 /**
  * 결과 집계 페이지
- *  - 일간/주간/월간/분기/연간/누적 기간 선택
+ *  - 일간/주간/월간/연간/누적 + 사용자 지정 기간 선택
  *  - 확정된 경기만 집계에 포함 (DB의 get_player_stats가 보장)
  */
 export function ResultsPage() {
   const settings = useSettingsStore((s) => s.settings)
   const [period, setPeriod] = useState<PeriodType>('daily')
   const [anchorDate, setAnchorDate] = useState(() => todayKst())
+  // 기간 지정용 시작일/종료일 (기본: 최근 1주일)
+  const [customFrom, setCustomFrom] = useState(() => addDaysToDateString(todayKst(), -7))
+  const [customTo, setCustomTo] = useState(() => todayKst())
   const [rows, setRows] = useState<PlayerStatsRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const range = useMemo(() => getPeriodRange(period, anchorDate), [period, anchorDate])
+  const range = useMemo(
+    () => getPeriodRange(period, anchorDate, { from: customFrom, to: customTo }),
+    [period, anchorDate, customFrom, customTo],
+  )
 
   useEffect(() => {
     let stale = false
@@ -50,16 +56,19 @@ export function ResultsPage() {
     [rows, settings.min_matches_for_ranking],
   )
 
+  const dateInputClass =
+    'h-11 flex-1 rounded-xl border border-gray-300 px-3 text-base font-semibold focus:border-green-600 focus:outline-none'
+
   return (
     <div className="flex flex-col gap-4">
-      {/* 기간 유형 선택 (터치 영역 44px 확보) */}
+      {/* 기간 유형 선택 (터치 영역 확보) */}
       <div className="grid grid-cols-6 gap-1 rounded-xl bg-gray-200 p-1">
         {PERIOD_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             type="button"
             onClick={() => setPeriod(opt.value)}
-            className={`h-10 rounded-lg text-sm font-bold ${
+            className={`h-10 rounded-lg text-xs font-bold sm:text-sm ${
               period === opt.value ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500'
             }`}
           >
@@ -68,8 +77,31 @@ export function ResultsPage() {
         ))}
       </div>
 
-      {/* 기준 날짜 이동 (누적은 날짜와 무관) */}
-      {period !== 'all' && <DateNavigator date={anchorDate} onChange={setAnchorDate} />}
+      {/* 기준 날짜 이동 (일간/주간/월간/연간) */}
+      {period !== 'all' && period !== 'custom' && (
+        <DateNavigator date={anchorDate} onChange={setAnchorDate} />
+      )}
+
+      {/* 사용자 지정 기간: 시작일 ~ 종료일 직접 입력 */}
+      {period === 'custom' && (
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={customFrom}
+            onChange={(e) => e.target.value && setCustomFrom(e.target.value)}
+            aria-label="조회 시작일"
+            className={dateInputClass}
+          />
+          <span className="font-bold text-gray-400">~</span>
+          <input
+            type="date"
+            value={customTo}
+            onChange={(e) => e.target.value && setCustomTo(e.target.value)}
+            aria-label="조회 종료일"
+            className={dateInputClass}
+          />
+        </div>
+      )}
 
       <h2 className="text-lg font-bold text-gray-800">{range.label} 순위</h2>
 

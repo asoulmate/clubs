@@ -14,12 +14,16 @@ html,
 body {
   height: 100%;
   background-color: #f3f4f6;
-  color: #111827;
+  color: #0f172a;
   -webkit-font-smoothing: antialiased;
-  /* 시스템 폰트 스택 (한글 포함) */
+  text-rendering: optimizeLegibility;
+  /* Pretendard 웹폰트 우선, 없으면 시스템 폰트 (한글 포함) */
   font-family:
     'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
     'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', Roboto, sans-serif;
+  /* 기본 굵기를 한 단계 올려 작은 글자도 뚜렷하게 */
+  font-weight: 450;
+  letter-spacing: -0.01em;
 }
 
 /* iOS에서 입력창 포커스 시 화면 자동 확대 방지 (16px 미만이면 확대됨) */
