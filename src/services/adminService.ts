@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { MatchAuditLog, PlayerPosition, Profile, UserRole } from '../types/domain'
+import type { AwardLevel, MatchAuditLog, PlayerPosition, Profile, UserRole } from '../types/domain'
 
 // ============================================================
 // 관리자 기능 데이터 접근 계층
@@ -20,15 +20,30 @@ export async function fetchAllUsers(search = ''): Promise<Profile[]> {
   return (data ?? []).map((row) => ({ ...row, is_guest: Boolean(row.is_guest) }))
 }
 
-/** 사용자 역할/활성 상태 변경 */
+/** 사용자 역할/활성/이름/입상 변경 (이름·입상·역할은 admin만 — DB 검증) */
 export async function adminUpdateUser(
   userId: string,
-  updates: { role?: UserRole; is_active?: boolean },
+  updates: {
+    role?: UserRole
+    is_active?: boolean
+    name?: string
+    award_level?: AwardLevel
+  },
 ): Promise<void> {
   const { error } = await supabase.rpc('admin_update_user', {
     p_user_id: userId,
     p_role: updates.role ?? null,
     p_is_active: updates.is_active ?? null,
+    p_name: updates.name ?? null,
+    p_award_level: updates.award_level ?? null,
+  })
+  if (error) throw error
+}
+
+/** 메인 관리자: 비밀번호를 123456으로 초기화 */
+export async function adminResetUserPassword(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_reset_user_password', {
+    p_user_id: userId,
   })
   if (error) throw error
 }

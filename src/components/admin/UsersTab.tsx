@@ -1,13 +1,135 @@
-import { useCallback, useEffect, useState } from 'react'
-import { AWARD_LEVEL_LABELS, ROLE_LABELS } from '../../constants/labels'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { AWARD_LEVEL_LABELS, AWARD_LEVEL_OPTIONS, ROLE_LABELS } from '../../constants/labels'
 import { useDebounce } from '../../hooks/useDebounce'
-import { adminUpdateUser, fetchAllUsers } from '../../services/adminService'
+import {
+  adminResetUserPassword,
+  adminUpdateUser,
+  fetchAllUsers,
+} from '../../services/adminService'
 import { useAuthStore } from '../../stores/authStore'
 import { useToastStore } from '../../stores/toastStore'
-import type { Profile, UserRole } from '../../types/domain'
+import type { AwardLevel, Profile, UserRole } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 import { isAdmin } from '../../utils/permissions'
+import { Dialog } from '../common/Dialog'
 import { Spinner } from '../common/Spinner'
+
+/** 메인 관리자: 이름·입상 수정 + 비밀번호 초기화 */
+function AdminEditUserDialog({
+  user,
+  onClose,
+  onChanged,
+}: {
+  user: Profile
+  onClose: () => void
+  onChanged: () => void
+}) {
+  const showToast = useToastStore((s) => s.show)
+  const [name, setName] = useState(user.name)
+  const [awardLevel, setAwardLevel] = useState<AwardLevel>(user.award_level)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [resetting, setResetting] = useState(false)
+
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    if (name.trim().length < 1) {
+      setError('이름을 입력해주세요.')
+      return
+    }
+    setSaving(true)
+    try {
+      await adminUpdateUser(user.id, {
+        name: name.trim(),
+        award_level: awardLevel,
+      })
+      showToast('회원 정보가 저장되었습니다.', 'success')
+      onChanged()
+      onClose()
+    } catch (err) {
+      setError(toErrorMessage(err))
+      setSaving(false)
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (
+      !window.confirm(
+        `${user.name} 님의 비밀번호를 123456 으로 초기화할까요?\n기존 로그인 세션은 종료됩니다.`,
+      )
+    ) {
+      return
+    }
+    setError(null)
+    setResetting(true)
+    try {
+      await adminResetUserPassword(user.id)
+      showToast('비밀번호가 123456 으로 초기화되었습니다.', 'success')
+    } catch (err) {
+      setError(toErrorMessage(err))
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  const inputClass =
+    'h-12 w-full rounded-xl border border-gray-300 px-4 text-base focus:border-green-600 focus:outline-none'
+
+  return (
+    <Dialog open onClose={onClose} title="회원 정보 수정">
+      <form onSubmit={handleSave} className="flex flex-col gap-4">
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-600">이름</span>
+          <input
+            type="text"
+            required
+            maxLength={30}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-600">입상 구분</span>
+          <select
+            value={awardLevel}
+            onChange={(e) => setAwardLevel(e.target.value as AwardLevel)}
+            className={inputClass}
+          >
+            {AWARD_LEVEL_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={saving || resetting}
+          className="h-12 rounded-xl bg-green-700 font-bold text-white disabled:opacity-50"
+        >
+          {saving ? '저장 중...' : '저장'}
+        </button>
+
+        {!user.is_guest && (
+          <button
+            type="button"
+            disabled={saving || resetting}
+            onClick={() => void handleResetPassword()}
+            className="h-12 rounded-xl border-2 border-amber-500 font-bold text-amber-700 active:bg-amber-50 disabled:opacity-50"
+          >
+            {resetting ? '초기화 중...' : '비밀번호 초기화 (123456)'}
+          </button>
+        )}
+      </form>
+    </Dialog>
+  )
+}
 
 /** 관리자 - 사용자 관리 탭 */
 export function UsersTab() {
@@ -16,9 +138,11 @@ export function UsersTab() {
   const [search, setSearch] = useState('')
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<Profile | null>(null)
   const debouncedSearch = useDebounce(search, 300)
 
   const canChangeRole = isAdmin(myProfile)
+  const canEditProfile = isAdmin(myProfile)
 
   const load = useCallback(async () => {
     try {
@@ -76,6 +200,12 @@ export function UsersTab() {
         className="h-12 w-full rounded-xl border border-gray-300 px-4 text-base focus:border-green-600 focus:outline-none"
       />
 
+      {canEditProfile && (
+        <p className="text-xs text-gray-500">
+          메인 관리자는 회원 편집에서 이름·입상 변경 및 비밀번호 초기화(123456)가 가능합니다.
+        </p>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-10">
           <Spinner />
@@ -116,7 +246,17 @@ export function UsersTab() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {canEditProfile && (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(user)}
+                    className="h-10 rounded-lg bg-gray-100 px-3 text-sm font-bold text-gray-700 active:bg-gray-200"
+                  >
+                    편집
+                  </button>
+                )}
+
                 {/* 역할 변경은 admin만 가능 (자기 자신·게스트 제외) — 최종 검증은 DB가 수행 */}
                 <select
                   value={user.role}
@@ -146,6 +286,14 @@ export function UsersTab() {
             </div>
           ))}
         </div>
+      )}
+
+      {editing && (
+        <AdminEditUserDialog
+          user={editing}
+          onClose={() => setEditing(null)}
+          onChanged={() => void load()}
+        />
       )}
     </div>
   )
