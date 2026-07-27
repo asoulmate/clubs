@@ -156,7 +156,7 @@ export function SystemSettingsTab() {
           <div>
             <p className="font-semibold">유튜브 채널 핸들</p>
             <p className="text-xs text-gray-400">
-              @ 없이 입력 (예: 멍기멍기-k4q). 자동/후보 매칭에 사용
+              @ 없이 입력 (예: 멍기멍기-k4q). 수동 매칭 버튼·후보 조회에 사용
             </p>
           </div>
           <input
@@ -172,34 +172,6 @@ export function SystemSettingsTab() {
             className="h-11 w-44 rounded-lg border border-gray-300 px-2 text-sm disabled:bg-gray-100"
             aria-label="유튜브 채널 핸들"
             placeholder="멍기멍기-k4q"
-          />
-        </div>
-
-        <div className={rowClass}>
-          <div>
-            <p className="font-semibold">유튜브 업로드 허용 일수</p>
-            <p className="text-xs text-gray-400">
-              제목에 날짜가 없을 때, 경기일 이후 이 일수까지 업로드된 영상만 매칭
-            </p>
-          </div>
-          <input
-            type="number"
-            min={0}
-            max={60}
-            defaultValue={settings.youtube_upload_delay_days}
-            disabled={readOnly || saving}
-            onBlur={(e) => {
-              const value = Number(e.target.value)
-              if (
-                Number.isInteger(value) &&
-                value >= 0 &&
-                value !== settings.youtube_upload_delay_days
-              ) {
-                void save('youtube_upload_delay_days', value)
-              }
-            }}
-            className="h-11 w-20 rounded-lg border border-gray-300 px-2 text-center text-sm disabled:bg-gray-100"
-            aria-label="유튜브 업로드 허용 일수"
           />
         </div>
       </div>

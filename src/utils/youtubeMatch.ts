@@ -6,9 +6,14 @@ import { addDaysToDateString } from './kst'
 //  - 실제 제목 예:
 //    [지역신인부]7월 근무💫연수💫 vs 지훈💫희영💫
 //    → 풀네임이 아니라 짧은 이름 + 이모지 + vs 형식
-//  - 선택: 제목에 날짜가 있으면 경기일과 일치해야 함
+//  - 업로드일·경기일: 서로 ±windowDays(기본 2) 이내
+//  - 제목에 날짜가 있으면 그 날짜도 경기일 ±windowDays 이내
+//  - 이미 youtube_video_id 있는 경기는 스킵
 //  - 스코어/코트/회차 없음 → 동일 페어는 업로드·생성 순 1:1 배정
 // ============================================================
+
+/** 경기일 ↔ 업로드일 허용 범위 (±일). 고정 2일 */
+export const YOUTUBE_MATCH_WINDOW_DAYS = 2
 
 export interface YoutubeVideo {
   videoId: string
@@ -192,43 +197,52 @@ export function playerSetKey(names: string[]): string {
   return names.map(normalizePersonName).sort().join('|')
 }
 
-function isPublishInWindow(
-  matchDate: string,
-  publishedDate: string,
-  delayDays: number,
+/** 두 YYYY-MM-DD가 ±windowDays 이내인지 */
+export function isWithinDayWindow(
+  centerDate: string,
+  otherDate: string,
+  windowDays: number = YOUTUBE_MATCH_WINDOW_DAYS,
 ): boolean {
-  if (publishedDate < matchDate) return false
-  const latest = addDaysToDateString(matchDate, delayDays)
-  return publishedDate <= latest
+  const earliest = addDaysToDateString(centerDate, -windowDays)
+  const latest = addDaysToDateString(centerDate, windowDays)
+  return otherDate >= earliest && otherDate <= latest
 }
 
 /** 단일 영상·경기 매칭 점수. 불가하면 null */
 export function scoreVideoAgainstMatch(
   video: YoutubeVideo,
   match: MatchWithPlayers,
-  delayDays: number,
+  windowDays: number = YOUTUBE_MATCH_WINDOW_DAYS,
 ): { score: number; reason: string } | null {
   if (match.status === 'canceled') return null
+  if (match.youtube_video_id) return null
   const names = getMatchPlayerNames(match)
   if (!names) return null
 
   const nameMatch = matchNamesInTitle(video.title, names)
   if (!nameMatch) return null
 
+  // 업로드일이 경기일 ±window 밖이면 제외
+  if (!isWithinDayWindow(match.match_date, video.publishedDate, windowDays)) return null
+
   const year = Number(match.match_date.slice(0, 4))
   const titleDate = extractDateFromTitle(video.title, year)
-  // 이름 매칭 품질(풀네임일수록 가점, 최대 ~20)
   const nameBonus = Math.min(20, nameMatch.quality)
 
   if (titleDate) {
-    if (titleDate !== match.match_date) return null
+    if (!isWithinDayWindow(match.match_date, titleDate, windowDays)) return null
     return {
-      score: 200 + nameBonus + closenessBonus(match.match_date, video.publishedDate),
-      reason: '제목 날짜·선수 4명 일치',
+      score:
+        200 +
+        nameBonus +
+        closenessBonus(match.match_date, video.publishedDate) +
+        (titleDate === match.match_date ? 20 : 0),
+      reason:
+        titleDate === match.match_date
+          ? '제목 날짜·선수 4명 일치'
+          : `제목 날짜 ${titleDate}·선수 일치 (경기일 ±${windowDays}일)`,
     }
   }
-
-  if (!isPublishInWindow(match.match_date, video.publishedDate, delayDays)) return null
 
   return {
     score: 100 + nameBonus + closenessBonus(match.match_date, video.publishedDate),
@@ -240,18 +254,18 @@ function closenessBonus(matchDate: string, publishedDate: string): number {
   const a = Date.parse(`${matchDate}T00:00:00+09:00`)
   const b = Date.parse(`${publishedDate}T00:00:00+09:00`)
   if (Number.isNaN(a) || Number.isNaN(b)) return 0
-  const days = Math.max(0, Math.round((b - a) / 86400000))
+  const days = Math.abs(Math.round((b - a) / 86400000))
   return Math.max(0, 10 - days)
 }
 
 /**
- * 날짜의 경기들과 영상 목록을 1:1로 배정
- * 동일 페어 2경기·2영상이면 점수·시간순으로 각각 연결
+ * 경기들과 영상 목록을 1:1로 배정
+ * 이미 링크된 경기/영상은 스킵. 동일 페어 2경기면 점수·시간순 각각 연결
  */
 export function assignVideosToMatches(
   matches: MatchWithPlayers[],
   videos: YoutubeVideo[],
-  delayDays: number,
+  windowDays: number = YOUTUBE_MATCH_WINDOW_DAYS,
 ): YoutubeMatchCandidate[] {
   const openMatches = matches.filter((m) => !m.youtube_video_id && m.status !== 'canceled')
   const usedVideos = new Set(matches.map((m) => m.youtube_video_id).filter(Boolean) as string[])
@@ -260,7 +274,7 @@ export function assignVideosToMatches(
   for (const match of openMatches) {
     for (const video of videos) {
       if (usedVideos.has(video.videoId)) continue
-      const scored = scoreVideoAgainstMatch(video, match, delayDays)
+      const scored = scoreVideoAgainstMatch(video, match, windowDays)
       if (!scored) continue
       edges.push({
         matchId: match.id,
@@ -297,14 +311,17 @@ export function assignVideosToMatches(
 export function suggestVideosForMatch(
   match: MatchWithPlayers,
   videos: YoutubeVideo[],
-  delayDays: number,
   usedVideoIds: Set<string>,
+  windowDays: number = YOUTUBE_MATCH_WINDOW_DAYS,
   limit = 8,
 ): YoutubeMatchCandidate[] {
+  const probe: MatchWithPlayers = match.youtube_video_id
+    ? { ...match, youtube_video_id: null }
+    : match
   const list: YoutubeMatchCandidate[] = []
   for (const video of videos) {
     if (usedVideoIds.has(video.videoId) && match.youtube_video_id !== video.videoId) continue
-    const scored = scoreVideoAgainstMatch(video, match, delayDays)
+    const scored = scoreVideoAgainstMatch(video, probe, windowDays)
     if (!scored) continue
     list.push({ matchId: match.id, video, score: scored.score, reason: scored.reason })
   }

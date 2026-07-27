@@ -22,6 +22,23 @@ export async function fetchMatchesByDate(date: string): Promise<MatchWithPlayers
   return normalizeMatches((data ?? []) as unknown as MatchWithPlayers[])
 }
 
+/** 날짜 구간(포함) 경기 목록 조회 */
+export async function fetchMatchesByDateRange(
+  fromDate: string,
+  toDate: string,
+): Promise<MatchWithPlayers[]> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT)
+    .gte('match_date', fromDate)
+    .lte('match_date', toDate)
+    .order('match_date', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  return normalizeMatches((data ?? []) as unknown as MatchWithPlayers[])
+}
+
 /** 단일 경기 조회 (Realtime 이벤트 수신 시 해당 경기만 갱신할 때 사용) */
 export async function fetchMatchById(matchId: string): Promise<MatchWithPlayers | null> {
   const { data, error } = await supabase

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { DateNavigator } from '../components/common/DateNavigator'
 import { EmptyState } from '../components/common/EmptyState'
 import { Spinner } from '../components/common/Spinner'
@@ -6,7 +6,10 @@ import { AbsencesPanel } from '../components/match/AbsencesPanel'
 import { CreateMatchDialog } from '../components/match/CreateMatchDialog'
 import { MatchCard } from '../components/match/MatchCard'
 import { useMatchesByDate } from '../hooks/useMatchesByDate'
-import { autoLinkYoutubeForDate } from '../services/youtubeService'
+import {
+  autoLinkYoutubeAroundDate,
+  YOUTUBE_MATCH_WINDOW_DAYS,
+} from '../services/youtubeService'
 import { useAuthStore } from '../stores/authStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useToastStore } from '../stores/toastStore'
@@ -17,7 +20,7 @@ import { todayKst } from '../utils/kst'
  * 오늘의 경기 페이지 (메인)
  *  - 상단: 해당 날짜 무단 결석자 등록
  *  - Realtime으로 경기·결석 변경이 실시간 반영됨
- *  - 페이지 진입/날짜 변경 시 미연결 경기에 유튜브 자동 매칭 시도
+ *  - 유튜브 매칭은 수동 버튼으로만 실행 (±2일 영상·경기 비교)
  */
 export function MatchesPage() {
   const [date, setDate] = useState(() => todayKst())
@@ -26,62 +29,46 @@ export function MatchesPage() {
   const [syncingYoutube, setSyncingYoutube] = useState(false)
   const profile = useAuthStore((s) => s.profile)
   const settings = useSettingsStore((s) => s.settings)
-  const settingsLoaded = useSettingsStore((s) => s.loaded)
   const showToast = useToastStore((s) => s.show)
-  /** 같은 미연결 세트에 대해 자동 매칭을 중복 호출하지 않음 */
-  const autoAttemptKeyRef = useRef('')
 
-  const unlinkedMatches = matches.filter(
+  const unlinkedCount = matches.filter(
     (m) => !m.youtube_video_id && m.status !== 'canceled' && m.players.length >= 4,
-  )
-  const unlinkedCount = unlinkedMatches.length
+  ).length
 
-  const runAutoLink = async (silent: boolean) => {
+  const runManualLink = async () => {
     if (!settings.youtube_channel_handle) {
-      if (!silent) showToast('관리자 설정에서 유튜브 채널 핸들을 먼저 등록해주세요.', 'error')
+      showToast('관리자 설정에서 유튜브 채널 핸들을 먼저 등록해주세요.', 'error')
       return
     }
     if (!import.meta.env.VITE_YOUTUBE_API_KEY) {
-      if (!silent) {
-        showToast('유튜브 API 키가 없어 자동 연결을 할 수 없습니다.', 'error')
-      }
+      showToast('유튜브 API 키가 없어 연결을 할 수 없습니다.', 'error')
       return
     }
     setSyncingYoutube(true)
     try {
-      const { linked } = await autoLinkYoutubeForDate(
-        matches,
+      const { linked, scannedMatches, scannedVideos } = await autoLinkYoutubeAroundDate(
+        date,
         settings.youtube_channel_handle,
-        settings.youtube_upload_delay_days,
+        YOUTUBE_MATCH_WINDOW_DAYS,
       )
       if (linked > 0) {
-        showToast(`${linked}개 경기에 유튜브를 연결했습니다.`, 'success')
+        showToast(
+          `${linked}개 경기에 유튜브를 연결했습니다. (±${YOUTUBE_MATCH_WINDOW_DAYS}일: 경기 ${scannedMatches}·영상 ${scannedVideos})`,
+          'success',
+        )
         await refresh()
-      } else if (!silent) {
-        showToast('자동으로 연결할 영상이 없습니다. 카드에서 수동 연결을 시도해보세요.', 'info')
+      } else {
+        showToast(
+          `연결할 영상이 없습니다. (±${YOUTUBE_MATCH_WINDOW_DAYS}일: 경기 ${scannedMatches}·영상 ${scannedVideos})`,
+          'info',
+        )
       }
     } catch (err) {
-      if (!silent) showToast(toErrorMessage(err), 'error')
+      showToast(toErrorMessage(err), 'error')
     } finally {
       setSyncingYoutube(false)
     }
   }
-
-  // 페이지 열림·날짜 변경 후 경기 로드되면 미연결 건 자동 매칭
-  useEffect(() => {
-    if (loading || !settingsLoaded || !profile) return
-    if (unlinkedCount === 0) return
-
-    const attemptKey = `${date}:${unlinkedMatches
-      .map((m) => m.id)
-      .sort()
-      .join(',')}`
-    if (autoAttemptKeyRef.current === attemptKey) return
-    autoAttemptKeyRef.current = attemptKey
-
-    void runAutoLink(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 날짜·미연결 세트 기준으로만 1회
-  }, [date, loading, settingsLoaded, profile, unlinkedCount, matches])
 
   return (
     <div className="flex flex-col gap-4">
@@ -89,16 +76,16 @@ export function MatchesPage() {
 
       <AbsencesPanel date={date} />
 
-      {profile && matches.length > 0 && unlinkedCount > 0 && (
+      {profile && (
         <button
           type="button"
-          disabled={syncingYoutube}
-          onClick={() => void runAutoLink(false)}
+          disabled={syncingYoutube || loading}
+          onClick={() => void runManualLink()}
           className="h-11 rounded-xl border-2 border-red-200 bg-white px-4 text-sm font-bold text-red-700 active:bg-red-50 disabled:opacity-50"
         >
           {syncingYoutube
             ? '유튜브 매칭 중…'
-            : `유튜브 다시 연결 (미연결 ${unlinkedCount}경기)`}
+            : `유튜브 연결 (±${YOUTUBE_MATCH_WINDOW_DAYS}일)${unlinkedCount > 0 ? ` · 오늘 미연결 ${unlinkedCount}` : ''}`}
         </button>
       )}
 

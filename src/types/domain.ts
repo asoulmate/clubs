@@ -106,7 +106,7 @@ export interface AppSettings {
   require_signup_approval: boolean
   /** YouTube 채널 핸들 (@ 제외) */
   youtube_channel_handle: string
-  /** 제목에 날짜가 없을 때 경기일 이후 허용 업로드 일수 */
+  /** @deprecated 매칭은 고정 ±2일 창 사용. DB 호환용으로만 유지 */
   youtube_upload_delay_days: number
 }
 

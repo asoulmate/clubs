@@ -1,9 +1,12 @@
 import { supabase } from '../lib/supabase'
 import type { MatchWithPlayers } from '../types/domain'
+import { fetchMatchesByDateRange } from './matchService'
+import { addDaysToDateString } from '../utils/kst'
 import {
   assignVideosToMatches,
   extractYoutubeVideoId,
   suggestVideosForMatch,
+  YOUTUBE_MATCH_WINDOW_DAYS,
   type YoutubeMatchCandidate,
   type YoutubeVideo,
   youtubeWatchUrl,
@@ -47,7 +50,6 @@ async function resolveUploadsPlaylistId(handle: string): Promise<string> {
   let uploads = handleJson.items?.[0]?.contentDetails?.relatedPlaylists?.uploads
   if (uploads) return uploads
 
-  // 핸들 조회 실패 시 검색으로 채널 ID 추정
   const searchRes = await fetch(
     `${YT_API}/search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(cleaned)}&key=${key}`,
   )
@@ -70,13 +72,16 @@ async function resolveUploadsPlaylistId(handle: string): Promise<string> {
   return uploads
 }
 
-/** 채널 최근 업로드 영상 조회 */
+/** 채널 최근 업로드 영상 조회 (업로드일이 from~to인 것만, 또는 전체 후 필터) */
 export async function fetchChannelRecentVideos(
   channelHandle: string,
-  maxPages = 3,
+  options?: { fromDate?: string; toDate?: string; maxPages?: number },
 ): Promise<YoutubeVideo[]> {
   const playlistId = await resolveUploadsPlaylistId(channelHandle)
   const key = getApiKey()
+  const maxPages = options?.maxPages ?? 3
+  const fromDate = options?.fromDate
+  const toDate = options?.toDate
   const videos: YoutubeVideo[] = []
   let pageToken = ''
 
@@ -96,22 +101,32 @@ export async function fetchChannelRecentVideos(
     }
     if (json.error?.message) throw new Error(json.error.message)
 
+    let reachedOlderThanFrom = false
     for (const item of json.items ?? []) {
       const videoId = item.contentDetails?.videoId ?? item.snippet?.resourceId?.videoId
       const title = item.snippet?.title
       const publishedAt = item.contentDetails?.videoPublishedAt ?? item.snippet?.publishedAt
       if (!videoId || !title || !publishedAt) continue
+      const publishedDate = publishedDateKst(publishedAt)
+
+      // 재생목록은 최신순 → from보다 오래되면 이후는 불필요
+      if (fromDate && publishedDate < fromDate) {
+        reachedOlderThanFrom = true
+        continue
+      }
+      if (toDate && publishedDate > toDate) continue
+
       videos.push({
         videoId,
         title,
         publishedAt,
-        publishedDate: publishedDateKst(publishedAt),
+        publishedDate,
         url: youtubeWatchUrl(videoId),
       })
     }
 
     pageToken = json.nextPageToken ?? ''
-    if (!pageToken) break
+    if (!pageToken || reachedOlderThanFrom) break
   }
 
   return videos
@@ -145,35 +160,47 @@ export async function linkMatchYoutubeByUrl(
   await linkMatchYoutube(matchId, id, title)
 }
 
-/** 해당 날짜 경기에 유튜브 자동 연결 (연결된 건수 반환) */
-export async function autoLinkYoutubeForDate(
-  matches: MatchWithPlayers[],
+/**
+ * 기준일 ±windowDays 경기·영상을 가져와 미연결 경기만 매칭
+ * (이미 유튜브 링크가 있는 경기는 스킵)
+ */
+export async function autoLinkYoutubeAroundDate(
+  centerDate: string,
   channelHandle: string,
-  delayDays: number,
-): Promise<{ linked: number; assignments: YoutubeMatchCandidate[] }> {
-  const videos = await fetchChannelRecentVideos(channelHandle)
-  const assignments = assignVideosToMatches(matches, videos, delayDays)
+  windowDays: number = YOUTUBE_MATCH_WINDOW_DAYS,
+): Promise<{ linked: number; scannedMatches: number; scannedVideos: number }> {
+  const fromDate = addDaysToDateString(centerDate, -windowDays)
+  const toDate = addDaysToDateString(centerDate, windowDays)
+
+  const [matches, videos] = await Promise.all([
+    fetchMatchesByDateRange(fromDate, toDate),
+    fetchChannelRecentVideos(channelHandle, { fromDate, toDate }),
+  ])
+
+  const assignments = assignVideosToMatches(matches, videos, windowDays)
 
   let linked = 0
   for (const a of assignments) {
     await linkMatchYoutube(a.matchId, a.video.videoId, a.video.title)
     linked += 1
   }
-  return { linked, assignments }
+  return { linked, scannedMatches: matches.length, scannedVideos: videos.length }
 }
 
-/** 한 경기의 후보 영상 */
+/** 한 경기의 후보 영상 (해당 경기일 ±window 업로드) */
 export async function fetchSuggestionsForMatch(
   match: MatchWithPlayers,
   allMatches: MatchWithPlayers[],
   channelHandle: string,
-  delayDays: number,
+  windowDays: number = YOUTUBE_MATCH_WINDOW_DAYS,
 ): Promise<YoutubeMatchCandidate[]> {
-  const videos = await fetchChannelRecentVideos(channelHandle)
+  const fromDate = addDaysToDateString(match.match_date, -windowDays)
+  const toDate = addDaysToDateString(match.match_date, windowDays)
+  const videos = await fetchChannelRecentVideos(channelHandle, { fromDate, toDate })
   const used = new Set(
     allMatches.map((m) => m.youtube_video_id).filter((id): id is string => Boolean(id)),
   )
-  return suggestVideosForMatch(match, videos, delayDays, used)
+  return suggestVideosForMatch(match, videos, used, windowDays)
 }
 
-export { youtubeWatchUrl }
+export { youtubeWatchUrl, YOUTUBE_MATCH_WINDOW_DAYS }
