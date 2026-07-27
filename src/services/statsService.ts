@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import type {
   MonthlyTrendRow,
+  OpponentStatsRow,
   PartnerStatsRow,
   PlayerStatsRow,
   RecentMatchRow,
@@ -41,6 +42,21 @@ export async function fetchPartnerStats(
   })
   if (error) throw error
   return (data ?? []) as PartnerStatsRow[]
+}
+
+/** 상대별 집계 (반대 팀 선수) */
+export async function fetchOpponentStats(
+  userId: string,
+  from: string,
+  to: string,
+): Promise<OpponentStatsRow[]> {
+  const { data, error } = await supabase.rpc('get_opponent_stats', {
+    p_user_id: userId,
+    p_from: from,
+    p_to: to,
+  })
+  if (error) throw error
+  return (data ?? []) as OpponentStatsRow[]
 }
 
 /** 월별 경기 추이 */

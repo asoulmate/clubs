@@ -13,6 +13,8 @@ SQL Editor에서 순서대로 실행:
 5. `supabase/migrations/05_updates.sql` (경기 삭제, 월별 추이 참가일)
 6. `supabase/migrations/06_updates.sql` (경기 중 선수 중복 편성 차단)
 7. `supabase/migrations/07_updates.sql` (무단 결석 기록·집계)
+8. `supabase/migrations/08_updates.sql` ~ `10_updates.sql` (게스트·가입승인 등)
+9. `supabase/migrations/11_updates.sql` (상대별 승률 집계)
 
 ### 1-2. 최초 관리자 지정
 

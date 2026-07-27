@@ -5,12 +5,14 @@ import { AWARD_LEVEL_ICONS, AWARD_LEVEL_LABELS } from '../constants/labels'
 import { fetchProfileById } from '../services/profileService'
 import {
   fetchMonthlyTrend,
+  fetchOpponentStats,
   fetchPartnerStats,
   fetchPlayerSummary,
   fetchRecentMatches,
 } from '../services/statsService'
 import type {
   MonthlyTrendRow,
+  OpponentStatsRow,
   PartnerStatsRow,
   PlayerStatsRow,
   Profile,
@@ -59,6 +61,7 @@ export function PlayerDetailPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [stats, setStats] = useState<PlayerStatsRow | null>(null)
   const [partners, setPartners] = useState<PartnerStatsRow[]>([])
+  const [opponents, setOpponents] = useState<OpponentStatsRow[]>([])
   const [trend, setTrend] = useState<MonthlyTrendRow[]>([])
   const [recent, setRecent] = useState<RecentMatchRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -74,14 +77,16 @@ export function PlayerDetailPage() {
       fetchProfileById(userId),
       fetchPlayerSummary(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to),
       fetchPartnerStats(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to),
+      fetchOpponentStats(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to),
       fetchMonthlyTrend(userId),
       fetchRecentMatches(userId, 10),
     ])
-      .then(([p, s, pt, tr, rc]) => {
+      .then(([p, s, pt, op, tr, rc]) => {
         if (stale) return
         setProfile(p)
         setStats(s)
         setPartners(pt)
+        setOpponents(op)
         setTrend(tr)
         setRecent(rc)
       })
@@ -179,6 +184,43 @@ export function PlayerDetailPage() {
                       {partner.matches_played}경기 ·{' '}
                       <span className="font-semibold text-green-700">{partner.wins}승</span>{' '}
                       <span className="font-semibold text-red-600">{partner.losses}패</span>
+                    </p>
+                    <p className="text-xs text-gray-500">승률 {rate.toFixed(1)}%</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* 상대별 기록 */}
+      <section>
+        <h2 className="mb-2 text-lg font-bold">상대별 승률</h2>
+        {opponents.length === 0 ? (
+          <p className="rounded-xl bg-white py-6 text-center text-sm text-gray-500 shadow-sm">
+            아직 확정된 경기가 없습니다.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+            {opponents.map((opp) => {
+              const rate = calcWinRate(opp.wins, opp.matches_played)
+              return (
+                <div
+                  key={opp.opponent_id}
+                  className="flex items-center justify-between border-b border-gray-50 px-4 py-3 last:border-b-0"
+                >
+                  <div>
+                    <p className="font-semibold">{opp.opponent_name}</p>
+                    <p className="text-xs text-gray-400">
+                      {AWARD_LEVEL_LABELS[opp.opponent_award]}
+                    </p>
+                  </div>
+                  <div className="text-right text-sm">
+                    <p className="tabular-nums">
+                      {opp.matches_played}경기 ·{' '}
+                      <span className="font-semibold text-green-700">{opp.wins}승</span>{' '}
+                      <span className="font-semibold text-red-600">{opp.losses}패</span>
                     </p>
                     <p className="text-xs text-gray-500">승률 {rate.toFixed(1)}%</p>
                   </div>

@@ -152,6 +152,17 @@ export interface PartnerStatsRow {
   ties: number
 }
 
+/** get_opponent_stats 반환 행 */
+export interface OpponentStatsRow {
+  opponent_id: string
+  opponent_name: string
+  opponent_award: AwardLevel
+  matches_played: number
+  wins: number
+  losses: number
+  ties: number
+}
+
 /** get_player_monthly_trend 반환 행 */
 export interface MonthlyTrendRow {
   month: string
