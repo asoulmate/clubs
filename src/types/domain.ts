@@ -54,6 +54,10 @@ export interface Match {
   version: number
   created_at: string
   updated_at: string
+  /** 연결된 YouTube video id */
+  youtube_video_id: string | null
+  youtube_title: string | null
+  youtube_matched_at: string | null
 }
 
 export interface MatchPlayer {
@@ -100,6 +104,10 @@ export interface AppSettings {
   allow_proxy_registration: boolean
   /** true면 신규 가입 시 비활성(승인 대기), 관리자/서브가 활성화해야 이용 가능 */
   require_signup_approval: boolean
+  /** YouTube 채널 핸들 (@ 제외) */
+  youtube_channel_handle: string
+  /** 제목에 날짜가 없을 때 경기일 이후 허용 업로드 일수 */
+  youtube_upload_delay_days: number
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -109,6 +117,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   min_matches_for_ranking: 0,
   allow_proxy_registration: true,
   require_signup_approval: false,
+  youtube_channel_handle: '멍기멍기-k4q',
+  youtube_upload_delay_days: 7,
 }
 
 // ------------------------------------------------------------

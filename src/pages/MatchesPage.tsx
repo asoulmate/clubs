@@ -6,6 +6,11 @@ import { AbsencesPanel } from '../components/match/AbsencesPanel'
 import { CreateMatchDialog } from '../components/match/CreateMatchDialog'
 import { MatchCard } from '../components/match/MatchCard'
 import { useMatchesByDate } from '../hooks/useMatchesByDate'
+import { autoLinkYoutubeForDate } from '../services/youtubeService'
+import { useAuthStore } from '../stores/authStore'
+import { useSettingsStore } from '../stores/settingsStore'
+import { useToastStore } from '../stores/toastStore'
+import { toErrorMessage } from '../utils/errors'
 import { todayKst } from '../utils/kst'
 
 /**
@@ -17,12 +22,58 @@ export function MatchesPage() {
   const [date, setDate] = useState(() => todayKst())
   const { matches, loading, error, refresh } = useMatchesByDate(date)
   const [createOpen, setCreateOpen] = useState(false)
+  const [syncingYoutube, setSyncingYoutube] = useState(false)
+  const profile = useAuthStore((s) => s.profile)
+  const settings = useSettingsStore((s) => s.settings)
+  const showToast = useToastStore((s) => s.show)
+
+  const unlinkedCount = matches.filter(
+    (m) => !m.youtube_video_id && m.status !== 'canceled' && m.players.length >= 4,
+  ).length
+
+  const handleAutoLink = async () => {
+    if (!settings.youtube_channel_handle) {
+      showToast('관리자 설정에서 유튜브 채널 핸들을 먼저 등록해주세요.', 'error')
+      return
+    }
+    setSyncingYoutube(true)
+    try {
+      const { linked } = await autoLinkYoutubeForDate(
+        matches,
+        settings.youtube_channel_handle,
+        settings.youtube_upload_delay_days,
+      )
+      if (linked === 0) {
+        showToast('자동으로 연결할 영상이 없습니다. 카드에서 수동 연결을 시도해보세요.', 'info')
+      } else {
+        showToast(`${linked}개 경기에 유튜브를 연결했습니다.`, 'success')
+      }
+      await refresh()
+    } catch (err) {
+      showToast(toErrorMessage(err), 'error')
+    } finally {
+      setSyncingYoutube(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <DateNavigator date={date} onChange={setDate} />
 
       <AbsencesPanel date={date} />
+
+      {profile && matches.length > 0 && unlinkedCount > 0 && (
+        <button
+          type="button"
+          disabled={syncingYoutube}
+          onClick={() => void handleAutoLink()}
+          className="h-11 rounded-xl border-2 border-red-200 bg-white px-4 text-sm font-bold text-red-700 active:bg-red-50 disabled:opacity-50"
+        >
+          {syncingYoutube
+            ? '유튜브 매칭 중…'
+            : `유튜브 자동 연결 (미연결 ${unlinkedCount}경기)`}
+        </button>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-16">
@@ -44,7 +95,13 @@ export function MatchesPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {matches.map((match, i) => (
-            <MatchCard key={match.id} match={match} index={i + 1} onChanged={() => void refresh()} />
+            <MatchCard
+              key={match.id}
+              match={match}
+              index={i + 1}
+              dayMatches={matches}
+              onChanged={() => void refresh()}
+            />
           ))}
         </div>
       )}

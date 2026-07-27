@@ -38,6 +38,9 @@ export async function fetchMatchById(matchId: string): Promise<MatchWithPlayers 
 function normalizeMatches(matches: MatchWithPlayers[]): MatchWithPlayers[] {
   return matches.map((m) => ({
     ...m,
+    youtube_video_id: m.youtube_video_id ?? null,
+    youtube_title: m.youtube_title ?? null,
+    youtube_matched_at: m.youtube_matched_at ?? null,
     players: (m.players ?? []).map((p) => ({
       ...p,
       profile: p.profile

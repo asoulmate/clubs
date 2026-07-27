@@ -19,6 +19,20 @@ export async function fetchAppSettings(): Promise<AppSettings> {
       record[row.key] = row.value
     }
   }
+
+  // 타입 보정 (구버전 jsonb / 잘못된 값 대비)
+  if (typeof merged.youtube_channel_handle !== 'string') {
+    merged.youtube_channel_handle = DEFAULT_SETTINGS.youtube_channel_handle
+  } else {
+    merged.youtube_channel_handle = merged.youtube_channel_handle.replace(/^@/, '').trim()
+  }
+  if (
+    typeof merged.youtube_upload_delay_days !== 'number' ||
+    !Number.isFinite(merged.youtube_upload_delay_days)
+  ) {
+    merged.youtube_upload_delay_days = DEFAULT_SETTINGS.youtube_upload_delay_days
+  }
+
   return merged
 }
 

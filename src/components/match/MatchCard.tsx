@@ -26,15 +26,19 @@ import {
   isParticipant,
 } from '../../utils/permissions'
 import { winnerTeam } from '../../utils/score'
+import { youtubeWatchUrl } from '../../services/youtubeService'
 import { PlayerNameButton } from '../players/PlayerNameButton'
 import { RegisterSlotDialog } from './RegisterSlotDialog'
 import { ScoreDialog } from './ScoreDialog'
 import { StatusBadge } from './StatusBadge'
+import { YoutubeLinkDialog } from './YoutubeLinkDialog'
 
 interface MatchCardProps {
   match: MatchWithPlayers
   /** 화면 표시용 경기 번호 (1부터) */
   index: number
+  /** 같은 날짜 경기 목록 (유튜브 후보에서 이미 연결된 영상 제외) */
+  dayMatches?: MatchWithPlayers[]
   onChanged: () => void
 }
 
@@ -58,11 +62,12 @@ const STATUS_CARD_STYLES: Record<MatchStatus, string> = {
  * 경기 카드 (모바일에서 많은 경기를 한 화면에 보기 위한 압축 레이아웃)
  *  [A팀 이름 2줄(가운데)] [A점수] : [B점수] [B팀 이름 2줄(가운데)]
  */
-export function MatchCard({ match, index, onChanged }: MatchCardProps) {
+export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProps) {
   const profile = useAuthStore((s) => s.profile)
   const showToast = useToastStore((s) => s.show)
   const [registerPosition, setRegisterPosition] = useState<PlayerPosition | null>(null)
   const [scoreOpen, setScoreOpen] = useState(false)
+  const [youtubeOpen, setYoutubeOpen] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const playerAt = (position: PlayerPosition): MatchPlayer | undefined =>
@@ -294,6 +299,34 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
         </p>
       )}
 
+      {/* 유튜브 */}
+      {!isCanceled && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {match.youtube_video_id ? (
+            <a
+              href={youtubeWatchUrl(match.youtube_video_id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-red-600 px-3 text-sm font-bold text-white active:bg-red-700"
+            >
+              ▶ 영상 보기
+            </a>
+          ) : (
+            <span className="text-xs text-gray-400">영상 미연결</span>
+          )}
+          {profile && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setYoutubeOpen(true)}
+              className="h-10 rounded-xl border border-gray-300 px-3 text-sm font-semibold text-gray-700 active:bg-gray-50 disabled:opacity-50"
+            >
+              {match.youtube_video_id ? '유튜브 변경' : '유튜브 연결'}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* 다이얼로그 */}
       {registerPosition && (
         <RegisterSlotDialog
@@ -305,6 +338,14 @@ export function MatchCard({ match, index, onChanged }: MatchCardProps) {
       )}
       {scoreOpen && (
         <ScoreDialog match={match} onClose={() => setScoreOpen(false)} onChanged={onChanged} />
+      )}
+      {youtubeOpen && (
+        <YoutubeLinkDialog
+          match={match}
+          dayMatches={dayMatches ?? [match]}
+          onClose={() => setYoutubeOpen(false)}
+          onChanged={onChanged}
+        />
       )}
     </article>
   )

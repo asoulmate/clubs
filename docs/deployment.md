@@ -15,6 +15,7 @@ SQL Editor에서 순서대로 실행:
 7. `supabase/migrations/07_updates.sql` (무단 결석 기록·집계)
 8. `supabase/migrations/08_updates.sql` ~ `10_updates.sql` (게스트·가입승인 등)
 9. `supabase/migrations/11_updates.sql` (상대별 승률 집계)
+10. `supabase/migrations/12_updates.sql` (유튜브 영상 연동)
 
 ### 1-2. 최초 관리자 지정
 
@@ -53,9 +54,11 @@ HashRouter를 사용하므로 이메일 인증·비밀번호 재설정 링크가
 |---|---|
 | `SUPABASE_URL` | `https://프로젝트ref.supabase.co` |
 | `SUPABASE_PUBLISHABLE_KEY` | Supabase → Settings → API의 publishable(anon) key |
+| `YOUTUBE_API_KEY` | (선택) YouTube Data API v3 키 — 자동/후보 매칭용. HTTP referrer 제한 권장 |
 
 > publishable key는 어차피 빌드 결과물에 공개되는 값이며, 모든 데이터 접근은 RLS로 보호된다.
 > **service_role 키는 절대 GitHub에 등록하지 않는다.**
+> `YOUTUBE_API_KEY`도 `VITE_`로 빌드에 들어가므로 브라우저에 노출됩니다. Google Cloud에서 API 키 제한(YouTube Data API + referrer)을 걸어주세요.
 
 ## 3. 배포
 
@@ -71,7 +74,7 @@ HashRouter를 사용하므로 이메일 인증·비밀번호 재설정 링크가
 
 ```bash
 npm install
-copy .env.example .env    # VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY 입력
+copy .env.example .env    # VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, (선택) VITE_YOUTUBE_API_KEY 입력
 npm run dev               # http://localhost:5173
 npm run build             # 타입 검사 + 프로덕션 빌드
 npm run preview           # 빌드 결과 미리보기

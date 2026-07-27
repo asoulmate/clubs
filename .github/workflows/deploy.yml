@@ -5,6 +5,7 @@
 #  2. Secrets and variables → Actions 에 아래 값 등록
 #     - SUPABASE_URL              (Secrets 또는 Variables)
 #     - SUPABASE_PUBLISHABLE_KEY  (Secrets 또는 Variables)
+#     - YOUTUBE_API_KEY           (선택, 유튜브 자동/후보 매칭용)
 name: Deploy to GitHub Pages
 
 on:
@@ -44,6 +45,7 @@ jobs:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          VITE_YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
 
       - name: Pages 아티팩트 업로드
         uses: actions/upload-pages-artifact@v3
