@@ -76,5 +76,9 @@ export async function fetchRecentMatches(userId: string, limit = 10): Promise<Re
     p_limit: limit,
   })
   if (error) throw error
-  return (data ?? []) as RecentMatchRow[]
+  return ((data ?? []) as RecentMatchRow[]).map((row) => ({
+    ...row,
+    partner_awards: row.partner_awards ?? [],
+    opponent_awards: row.opponent_awards ?? [],
+  }))
 }

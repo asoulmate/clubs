@@ -192,5 +192,9 @@ export interface RecentMatchRow {
   team_b_score: number
   result: 'win' | 'loss' | 'tie'
   partner_names: string[]
+  /** 파트너 입상 (partner_names와 동일 순서) */
+  partner_awards: AwardLevel[]
   opponent_names: string[]
+  /** 상대 입상 (opponent_names와 동일 순서) */
+  opponent_awards: AwardLevel[]
 }

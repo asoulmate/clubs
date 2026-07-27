@@ -16,6 +16,7 @@ SQL Editor에서 순서대로 실행:
 8. `supabase/migrations/08_updates.sql` ~ `10_updates.sql` (게스트·가입승인 등)
 9. `supabase/migrations/11_updates.sql` (상대별 승률 집계)
 10. `supabase/migrations/12_updates.sql` (유튜브 영상 연동)
+11. `supabase/migrations/13_updates.sql` (최근 경기 파트너·상대 입상)
 
 ### 1-2. 최초 관리자 지정
 

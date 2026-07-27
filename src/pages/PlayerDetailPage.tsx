@@ -11,6 +11,7 @@ import {
   fetchRecentMatches,
 } from '../services/statsService'
 import type {
+  AwardLevel,
   MonthlyTrendRow,
   OpponentStatsRow,
   PartnerStatsRow,
@@ -21,6 +22,21 @@ import type {
 import { formatDateKorean } from '../utils/kst'
 import { ALL_TIME_RANGE } from '../utils/period'
 import { calcParticipationRate, calcWinRate } from '../utils/ranking'
+
+/** 이름 + 입상 아이콘 */
+function NameWithAward({ name, award }: { name: string; award?: AwardLevel | null }) {
+  const icon = award ? AWARD_LEVEL_ICONS[award] : ''
+  return (
+    <span className="inline-flex items-center gap-0.5 font-semibold text-gray-900">
+      {name}
+      {icon ? (
+        <span aria-hidden="true" title={award ? AWARD_LEVEL_LABELS[award] : undefined}>
+          {icon}
+        </span>
+      ) : null}
+    </span>
+  )
+}
 
 /** 통계 카드 1칸 */
 function StatCard({
@@ -121,17 +137,16 @@ export function PlayerDetailPage() {
   const pointDiff = stats ? stats.points_for - stats.points_against : 0
   const maxTrendMatches = Math.max(1, ...trend.map((t) => t.matches_played))
 
+  const recentWins = recent.filter((m) => m.result === 'win').length
+  const recentLosses = recent.filter((m) => m.result === 'loss').length
+  const recentTies = recent.filter((m) => m.result === 'tie').length
+
   return (
     <div className="flex flex-col gap-5">
       {/* 프로필 헤더 */}
       <div>
         <h1 className="text-2xl font-extrabold">
-          {profile.name}
-          {AWARD_LEVEL_ICONS[profile.award_level] ? (
-            <span className="ml-1" aria-hidden="true">
-              {AWARD_LEVEL_ICONS[profile.award_level]}
-            </span>
-          ) : null}
+          <NameWithAward name={profile.name} award={profile.award_level} />
         </h1>
         <p className="text-sm text-gray-500">
           {AWARD_LEVEL_LABELS[profile.award_level]}
@@ -139,7 +154,7 @@ export function PlayerDetailPage() {
         </p>
       </div>
 
-      {/* 누적 통계 카드 — 5열 2행 + 무단결석 강조 */}
+      {/* 누적 통계 카드 */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <StatCard label="총 경기" value={`${stats?.matches_played ?? 0}`} />
         <StatCard label="승" value={`${stats?.wins ?? 0}`} />
@@ -150,11 +165,7 @@ export function PlayerDetailPage() {
         <StatCard label="득실차" value={pointDiff > 0 ? `+${pointDiff}` : `${pointDiff}`} />
         <StatCard label="누적 참가일" value={`${stats?.days_participated ?? 0}일`} />
         <StatCard label="참가율" value={`${participationRate.toFixed(0)}%`} />
-        <StatCard
-          label="무단 결석"
-          value={`${stats?.absences ?? 0}회`}
-          highlight
-        />
+        <StatCard label="무단 결석" value={`${stats?.absences ?? 0}회`} highlight />
       </div>
 
       {/* 파트너별 기록 */}
@@ -174,7 +185,9 @@ export function PlayerDetailPage() {
                   className="flex items-center justify-between border-b border-gray-50 px-4 py-3 last:border-b-0"
                 >
                   <div>
-                    <p className="font-semibold">{partner.partner_name}</p>
+                    <p>
+                      <NameWithAward name={partner.partner_name} award={partner.partner_award} />
+                    </p>
                     <p className="text-xs text-gray-400">
                       {AWARD_LEVEL_LABELS[partner.partner_award]}
                     </p>
@@ -211,7 +224,9 @@ export function PlayerDetailPage() {
                   className="flex items-center justify-between border-b border-gray-50 px-4 py-3 last:border-b-0"
                 >
                   <div>
-                    <p className="font-semibold">{opp.opponent_name}</p>
+                    <p>
+                      <NameWithAward name={opp.opponent_name} award={opp.opponent_award} />
+                    </p>
                     <p className="text-xs text-gray-400">
                       {AWARD_LEVEL_LABELS[opp.opponent_award]}
                     </p>
@@ -231,7 +246,7 @@ export function PlayerDetailPage() {
         )}
       </section>
 
-      {/* 월별 경기 수 + 참가일 통합 막대 그래프 */}
+      {/* 월별 추이 */}
       <section>
         <h2 className="mb-2 text-lg font-bold">월별 경기·참가 추이</h2>
         {trend.length === 0 ? (
@@ -240,7 +255,6 @@ export function PlayerDetailPage() {
           </p>
         ) : (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            {/* 범례 */}
             <div className="mb-3 flex items-center gap-4 text-xs text-gray-600">
               <span className="flex items-center gap-1.5">
                 <span className="h-3 w-3 rounded-sm bg-green-600" aria-hidden="true" />
@@ -255,7 +269,6 @@ export function PlayerDetailPage() {
             <div className="flex items-end gap-2 overflow-x-auto">
               {trend.map((t) => (
                 <div key={t.month} className="flex min-w-12 flex-1 flex-col items-center gap-1">
-                  {/* 경기 수 / 참가일 막대를 나란히 표시 */}
                   <div className="flex w-full items-end justify-center gap-0.5">
                     <div className="flex flex-col items-center">
                       <span className="text-[11px] font-semibold tabular-nums text-green-700">
@@ -290,7 +303,22 @@ export function PlayerDetailPage() {
 
       {/* 최근 경기 목록 */}
       <section>
-        <h2 className="mb-2 text-lg font-bold">최근 경기</h2>
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-bold">최근 경기</h2>
+          {recent.length > 0 && (
+            <p className="text-sm tabular-nums text-gray-600">
+              {recent.length}경기 ·{' '}
+              <span className="font-semibold text-green-700">{recentWins}승</span>{' '}
+              <span className="font-semibold text-red-600">{recentLosses}패</span>
+              {recentTies > 0 && (
+                <>
+                  {' '}
+                  <span className="font-semibold text-gray-500">{recentTies}무</span>
+                </>
+              )}
+            </p>
+          )}
+        </div>
         {recent.length === 0 ? (
           <p className="rounded-xl bg-white py-6 text-center text-sm text-gray-500 shadow-sm">
             아직 확정된 경기가 없습니다.
@@ -303,18 +331,32 @@ export function PlayerDetailPage() {
               return (
                 <div
                   key={m.match_id}
-                  className="flex items-center justify-between border-b border-gray-50 px-4 py-3 last:border-b-0"
+                  className="flex items-center justify-between gap-3 border-b border-gray-50 px-4 py-3 last:border-b-0"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm text-gray-500">{formatDateKorean(m.match_date)}</p>
                     <p className="text-sm">
                       <span className="text-gray-400">파트너</span>{' '}
-                      {m.partner_names.join(', ') || '-'}
+                      {m.partner_names.length > 0
+                        ? m.partner_names.map((name, i) => (
+                            <span key={`${m.match_id}-p-${i}`}>
+                              {i > 0 ? ', ' : ''}
+                              <NameWithAward name={name} award={m.partner_awards[i]} />
+                            </span>
+                          ))
+                        : '-'}
                       <span className="ml-2 text-gray-400">상대</span>{' '}
-                      {m.opponent_names.join(', ') || '-'}
+                      {m.opponent_names.length > 0
+                        ? m.opponent_names.map((name, i) => (
+                            <span key={`${m.match_id}-o-${i}`}>
+                              {i > 0 ? ', ' : ''}
+                              <NameWithAward name={name} award={m.opponent_awards[i]} />
+                            </span>
+                          ))
+                        : '-'}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <span className="text-lg font-extrabold tabular-nums">
                       {myScore} : {oppScore}
                     </span>
