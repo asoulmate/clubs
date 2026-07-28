@@ -5,7 +5,10 @@ import type { AwardLevel, Profile } from '../types/domain'
 // 사용자 프로필 데이터 접근 계층
 // ============================================================
 
-/** DB 행 → Profile (구스키마 누락 대비) */
+/** DB 행 → Profile (구스키마 누락 대비)
+ *  profiles.role 은 레거시이며 권한 소스가 아님.
+ *  클럽 진입 전엔 user 로 두고, 클럽 멤버십/플랫폼 플래그로 덮어쓴다.
+ */
 function toProfile(
   row: Profile & {
     is_guest?: boolean | null
@@ -14,11 +17,14 @@ function toProfile(
   },
 ): Profile {
   const aff = row.affiliation?.trim()
+  const isPlatformAdmin = Boolean(row.is_platform_admin)
   return {
     ...row,
     is_guest: Boolean(row.is_guest),
     affiliation: aff ? aff : null,
-    is_platform_admin: Boolean(row.is_platform_admin),
+    is_platform_admin: isPlatformAdmin,
+    // 플랫폼 슈퍼만 admin 표시. 클럽 역할은 clubStore가 덮어씀
+    role: isPlatformAdmin ? 'admin' : 'user',
   }
 }
 
