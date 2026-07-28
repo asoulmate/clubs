@@ -130,13 +130,16 @@ export function AbsencesPanel({ date }: AbsencesPanelProps) {
               key={row.id}
               className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-red-300 bg-white px-3"
             >
-              <PlayerNameButton
-                userId={row.user_id}
-                name={row.profile?.name ?? '(알 수 없음)'}
-                awardLevel={row.profile?.award_level}
-                affiliation={row.profile?.is_guest ? row.profile?.affiliation : null}
-                className="items-start justify-start font-extrabold text-red-800"
-              />
+              <div className="flex min-w-0 flex-1 items-center">
+                <PlayerNameButton
+                  userId={row.user_id}
+                  name={row.profile?.name ?? '(알 수 없음)'}
+                  awardLevel={row.profile?.award_level}
+                  affiliation={row.profile?.is_guest ? row.profile?.affiliation : null}
+                  affiliationClassName="text-[10px]"
+                  className="min-h-0 items-start justify-center py-0 text-base font-extrabold text-red-800"
+                />
+              </div>
               {canRemove(row) && (
                 <button
                   type="button"
