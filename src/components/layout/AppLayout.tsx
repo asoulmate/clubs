@@ -40,15 +40,24 @@ export function AppLayout() {
       isActive ? 'text-green-700 md:bg-green-50' : 'text-gray-500 hover:text-gray-800'
     }`
 
+  const clubSwitcher = (
+    <Link
+      to="/"
+      title="클럽 선택"
+      aria-label={`${brand} — 클럽 선택`}
+      className="inline-flex max-w-full items-center gap-1 rounded-xl px-1 py-0.5 text-green-800 active:bg-green-50"
+    >
+      <span className="truncate text-base font-extrabold md:text-lg">🎾 {brand}</span>
+      <span className="shrink-0 text-[10px] font-bold text-green-700/60" aria-hidden="true">
+        ▼
+      </span>
+    </Link>
+  )
+
   return (
     <div className="mx-auto min-h-dvh w-full max-w-3xl">
       <header className="sticky top-0 z-40 hidden items-center justify-between border-b border-gray-200 bg-white px-4 py-2 md:flex">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-extrabold text-green-800">🎾 {brand}</span>
-          <Link to="/" className="text-xs font-semibold text-gray-500 underline">
-            클럽 선택
-          </Link>
-        </div>
+        {clubSwitcher}
         <nav className="flex items-center gap-1">
           {items.map((item) => (
             <NavLink
@@ -65,12 +74,7 @@ export function AppLayout() {
       </header>
 
       <main className="pb-nav px-4 pt-4 md:pb-8">
-        <div className="mb-3 flex items-center justify-between md:hidden">
-          <h1 className="text-base font-extrabold text-green-800">🎾 {brand}</h1>
-          <Link to="/" className="text-xs font-semibold text-gray-500 underline">
-            클럽 선택
-          </Link>
-        </div>
+        <div className="mb-3 md:hidden">{clubSwitcher}</div>
         <Outlet />
       </main>
 

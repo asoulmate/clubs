@@ -30,6 +30,9 @@ SQL Editor에서 순서대로 실행:
 22. `supabase/migrations/24_betting_lock_on_start.sql` (경기 시작·스코어 입력 후 배팅 변경 잠금)
 23. `supabase/migrations/25_absence_by_match_type.sql` (단식/복식 집계: 해당 유형 경기 있는 날만 무단결석 반영)
 24. `supabase/migrations/26_match_display_order.sql` (당일 경기 표시 순서 변경)
+25. `supabase/migrations/27_admin_only_cancel_delete.sql` (경기 취소·삭제: 관리자/서브만)
+26. `supabase/migrations/28_platform_create_club_admin.sql` (플랫폼 클럽 생성 시 생성자=클럽 관리자)
+27. `supabase/migrations/29_audit_logs_club_scope.sql` (수정 이력: 클럽별 조회)
 
 ### 1-2. 최초 관리자 지정
 

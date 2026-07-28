@@ -12,11 +12,20 @@ const STATUS_STYLES: Record<MatchStatus, { className: string; icon: string }> = 
 }
 
 /** 경기 상태 배지 */
-export function StatusBadge({ status }: { status: MatchStatus }) {
+export function StatusBadge({
+  status,
+  compact = false,
+}: {
+  status: MatchStatus
+  /** 모바일 카드 헤더용 작은 배지 */
+  compact?: boolean
+}) {
   const style = STATUS_STYLES[status]
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${style.className}`}
+      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full font-bold whitespace-nowrap ${
+        compact ? 'px-1.5 py-0.5 text-[11px]' : 'gap-1 px-2.5 py-1 text-xs'
+      } ${style.className}`}
     >
       <span aria-hidden="true">{style.icon}</span>
       {MATCH_STATUS_LABELS[status]}

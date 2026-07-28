@@ -50,21 +50,16 @@ export function canConfirmScore(profile: Profile | null, match: MatchWithPlayers
   return positionTeam(me.position) !== positionTeam(submitter.position)
 }
 
-/** 경기 취소 버튼을 보여줄 수 있는지 */
+/** 경기 취소 버튼을 보여줄 수 있는지 (관리자/서브만) */
 export function canCancelMatch(profile: Profile | null, match: MatchWithPlayers): boolean {
   if (!profile || match.status === 'canceled') return false
-  if (isAdminOrSub(profile)) return true
-  return (
-    match.created_by === profile.id &&
-    (match.status === 'open' || match.status === 'ready' || match.status === 'in_progress')
-  )
+  return isAdminOrSub(profile)
 }
 
-/** 경기 삭제 버튼을 보여줄 수 있는지 (개설자: 확정 전 / 관리자: 항상) */
+/** 경기 삭제 버튼을 보여줄 수 있는지 (관리자/서브만) */
 export function canDeleteMatch(profile: Profile | null, match: MatchWithPlayers): boolean {
   if (!profile) return false
-  if (isAdminOrSub(profile)) return true
-  return match.created_by === profile.id && match.status !== 'confirmed'
+  return isAdminOrSub(profile)
 }
 
 /** 슬롯의 참가자를 제거할 수 있는지 */

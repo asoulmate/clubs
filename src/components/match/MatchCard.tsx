@@ -44,12 +44,9 @@ interface MatchCardProps {
   /** 같은 날짜 경기 목록 (유튜브 후보에서 이미 연결된 영상 제외) */
   dayMatches?: MatchWithPlayers[]
   onChanged: () => void
-  /** 길게 눌러 순서 변경용 드래그 핸들 props (dnd-kit listeners/attributes) */
-  dragHandleProps?: Record<string, unknown>
-  isDragging?: boolean
-  /** 차선책: 한 칸 위로 */
+  /** 한 칸 위로 */
   onMoveUp?: () => void
-  /** 차선책: 한 칸 아래로 */
+  /** 한 칸 아래로 */
   onMoveDown?: () => void
 }
 
@@ -84,8 +81,6 @@ export function MatchCard({
   index,
   dayMatches,
   onChanged,
-  dragHandleProps,
-  isDragging = false,
   onMoveUp,
   onMoveDown,
 }: MatchCardProps) {
@@ -233,82 +228,68 @@ export function MatchCard({
     )
   }
 
+  const canCancel = Boolean(profile && canCancelMatch(profile, match))
+  const canDelete = Boolean(profile && canDeleteMatch(profile, match))
+
   return (
-    <article
-      className={`rounded-2xl border-2 p-3 shadow-sm ${STATUS_CARD_STYLES[match.status]} ${
-        isDragging ? 'opacity-70 ring-2 ring-green-500' : ''
-      }`}
-    >
-      {/* 헤더: 순서 핸들 + 경기 번호 + 상태 + 삭제/취소 */}
-      <div className="mb-2 flex items-center justify-between gap-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          {dragHandleProps && (
-            <button
-              type="button"
-              aria-label="길게 눌러 순서 변경"
-              title="길게 눌러 끌어 순서를 바꿀 수 있습니다"
-              className="flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-lg text-gray-400 active:bg-gray-100 active:text-gray-700"
-              {...dragHandleProps}
-            >
-              <span aria-hidden="true" className="text-lg leading-none">
-                ⠿
-              </span>
-            </button>
-          )}
-          <span className="font-bold text-gray-700">#{index}</span>
-          <StatusBadge status={match.status} />
+    <article className={`rounded-2xl border-2 p-3 shadow-sm ${STATUS_CARD_STYLES[match.status]}`}>
+      {/* 헤더: 모바일에서도 한 줄 (# · 상태 · 유형 · ↑↓ · 취소/삭제) */}
+      <div className="mb-2 flex items-center gap-1 overflow-x-auto">
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          <span className="shrink-0 text-sm font-bold text-gray-700">#{index}</span>
+          <StatusBadge status={match.status} compact />
           <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-bold whitespace-nowrap ${
               isSingles ? 'bg-purple-50 text-purple-700' : 'bg-sky-50 text-sky-700'
             }`}
           >
             {MATCH_TYPE_LABELS[match.match_type]}
           </span>
           {match.is_betting && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-              💰 배팅
+            <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold whitespace-nowrap text-amber-800">
+              배팅
             </span>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {onMoveUp && (
-            <button
-              type="button"
-              aria-label="한 칸 위로"
-              disabled={busy}
-              onClick={onMoveUp}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-gray-500 active:bg-gray-100 disabled:opacity-30"
-            >
-              ↑
-            </button>
+        <div className="ml-auto flex shrink-0 items-center">
+          {(onMoveUp || onMoveDown) && (
+            <div className="flex items-center">
+              <button
+                type="button"
+                aria-label="한 칸 위로"
+                disabled={busy || !onMoveUp}
+                onClick={onMoveUp}
+                className="flex h-8 w-7 items-center justify-center rounded-md text-sm font-bold text-gray-500 active:bg-gray-100 disabled:opacity-25"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label="한 칸 아래로"
+                disabled={busy || !onMoveDown}
+                onClick={onMoveDown}
+                className="flex h-8 w-7 items-center justify-center rounded-md text-sm font-bold text-gray-500 active:bg-gray-100 disabled:opacity-25"
+              >
+                ↓
+              </button>
+            </div>
           )}
-          {onMoveDown && (
-            <button
-              type="button"
-              aria-label="한 칸 아래로"
-              disabled={busy}
-              onClick={onMoveDown}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-gray-500 active:bg-gray-100 disabled:opacity-30"
-            >
-              ↓
-            </button>
-          )}
-          {profile && canCancelMatch(profile, match) && (
+          {canCancel && (
             <button
               type="button"
               onClick={handleCancel}
               disabled={busy}
-              className="min-h-9 rounded-lg px-2 text-sm text-gray-400 underline active:text-red-600"
+              className="h-8 px-1.5 text-[11px] text-gray-400 underline active:text-red-600"
             >
               취소
             </button>
           )}
-          {profile && canDeleteMatch(profile, match) && (
+          {canDelete && (
             <button
               type="button"
               onClick={handleDelete}
               disabled={busy}
-              className="min-h-9 rounded-lg px-2 text-sm text-red-400 underline active:text-red-600"
+              className="h-8 px-1.5 text-[11px] text-red-400 underline active:text-red-600"
             >
               삭제
             </button>

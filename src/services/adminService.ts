@@ -150,11 +150,18 @@ export async function adminResetMatch(matchId: string, reason: string): Promise<
   if (error) throw error
 }
 
-/** 감사 로그 조회 (최신순) */
-export async function fetchAuditLogs(matchId?: string, limit = 100): Promise<MatchAuditLog[]> {
+/** 감사 로그 조회 (현재 클럽 경기만, 최신순) */
+export async function fetchAuditLogs(
+  clubId: string,
+  matchId?: string,
+  limit = 100,
+): Promise<MatchAuditLog[]> {
   let builder = supabase
     .from('match_audit_logs')
-    .select('*, changed_by_profile:profiles!match_audit_logs_changed_by_fkey(id, name)')
+    .select(
+      '*, changed_by_profile:profiles!match_audit_logs_changed_by_fkey(id, name), match:matches!inner(club_id, match_date)',
+    )
+    .eq('match.club_id', clubId)
     .order('changed_at', { ascending: false })
     .limit(limit)
 
