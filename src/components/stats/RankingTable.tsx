@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { AWARD_LEVEL_LABELS } from '../../constants/labels'
 import type { RankedPlayerStats } from '../../types/domain'
 import { PlayerNameButton } from '../players/PlayerNameButton'
 
@@ -25,10 +24,10 @@ type SortKey =
 
 type SortDir = 'asc' | 'desc'
 
-/** 1·2·3등 행 배경 (sticky 셀에도 동일하게 적용) */
+/** 1·2·3등 행 배경 (sticky 셀에도 동일하게 적용 — 불투명만 사용) */
 function podiumStyles(rank: number | null): { row: string; sticky: string } {
   if (rank === 1) return { row: 'bg-amber-100', sticky: 'bg-amber-100' }
-  if (rank === 2) return { row: 'bg-slate-200/80', sticky: 'bg-slate-200/80' }
+  if (rank === 2) return { row: 'bg-slate-200', sticky: 'bg-slate-200' }
   if (rank === 3) return { row: 'bg-orange-100', sticky: 'bg-orange-100' }
   return { row: '', sticky: 'bg-white' }
 }
@@ -108,8 +107,8 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
 
   const hasTies = rows.some((r) => r.ties > 0)
 
-  const stickyRank = 'sticky left-0 z-10 w-11 min-w-11'
-  const stickyName = 'sticky left-11 z-10 border-r border-gray-200'
+  const stickyRank = 'sticky left-0 z-10 w-14 min-w-14'
+  const stickyName = 'sticky left-14 z-10 border-r border-gray-200'
   const numCell = 'whitespace-nowrap px-2.5 py-2 text-center tabular-nums'
   const numHead = 'whitespace-nowrap px-2.5 py-3 text-center font-semibold'
 
@@ -141,13 +140,13 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
       <button
         type="button"
         onClick={() => toggleSort(columnKey)}
-        className={`inline-flex min-h-9 items-center justify-center gap-0.5 rounded-lg px-1 font-semibold active:bg-gray-200 ${
+        className={`inline-flex min-h-9 items-center justify-center gap-0.5 whitespace-nowrap rounded-lg px-1 font-semibold active:bg-gray-200 ${
           sortKey === columnKey ? 'text-green-700' : 'text-gray-500'
         }`}
         aria-label={`${label} 정렬`}
       >
         {label}
-        <span className="text-[10px]" aria-hidden="true">
+        <span className="shrink-0 text-[10px]" aria-hidden="true">
           {sortMark(columnKey) || ' ↕'}
         </span>
       </button>
@@ -246,9 +245,6 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
                       awardLevel={row.award_level}
                       className="min-h-9 justify-start"
                     />
-                    <span className="ml-1 hidden text-xs text-gray-400 lg:inline">
-                      {AWARD_LEVEL_LABELS[row.award_level]}
-                    </span>
                   </td>
                   <td className={numCell}>{row.matches_played}</td>
                   <td className={`${numCell} font-semibold text-green-700`}>{row.wins}</td>
