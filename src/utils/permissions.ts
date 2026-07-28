@@ -7,18 +7,21 @@ import { positionTeam } from '../types/domain'
 // 실제 권한 검증은 Supabase RPC와 RLS가 DB에서 수행한다.
 // ============================================================
 
-/** 관리자 또는 서브 관리자 여부 (플랫폼 슈퍼관리자 포함) */
+/** 관리자 또는 서브 관리자 여부 (현재 클럽 역할 기준. 플랫폼 슈퍼는 /platform 전용) */
 export function isAdminOrSub(profile: Profile | null): boolean {
   if (!profile) return false
-  if (profile.is_platform_admin) return true
   return profile.role === 'admin' || profile.role === 'sub_admin'
 }
 
-/** 관리자 여부 (플랫폼 슈퍼관리자 포함) */
+/** 메인 관리자 여부 (현재 클럽 역할 기준) */
 export function isAdmin(profile: Profile | null): boolean {
   if (!profile) return false
-  if (profile.is_platform_admin) return true
   return profile.role === 'admin'
+}
+
+/** 플랫폼 슈퍼 관리자 (클럽 생성 등) */
+export function isPlatformAdmin(profile: Profile | null): boolean {
+  return Boolean(profile?.is_platform_admin)
 }
 
 /** 해당 경기의 참가자 여부 */

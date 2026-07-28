@@ -3,6 +3,7 @@ import { AWARD_LEVEL_OPTIONS, ROLE_LABELS } from '../constants/labels'
 import { changePassword, signOut } from '../services/authService'
 import { updateMyProfile } from '../services/profileService'
 import { useAuthStore } from '../stores/authStore'
+import { useClubStore } from '../stores/clubStore'
 import { useToastStore } from '../stores/toastStore'
 import type { AwardLevel } from '../types/domain'
 import { toErrorMessage } from '../utils/errors'
@@ -13,6 +14,7 @@ const inputClass =
 /** 설정 페이지: 내 정보 수정 + 비밀번호 변경 + 로그아웃 */
 export function SettingsPage() {
   const { session, profile, refreshProfile } = useAuthStore()
+  const membership = useClubStore((s) => s.membership)
   const showToast = useToastStore((s) => s.show)
   const [name, setName] = useState(profile?.name ?? '')
   const [awardLevel, setAwardLevel] = useState<AwardLevel>(profile?.award_level ?? 'none')
@@ -22,6 +24,9 @@ export function SettingsPage() {
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordCheck, setNewPasswordCheck] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
+
+  const clubRoleLabel =
+    membership?.status === 'active' ? ROLE_LABELS[membership.role] : profile ? ROLE_LABELS[profile.role] : '-'
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault()
@@ -86,7 +91,10 @@ export function SettingsPage() {
         <form onSubmit={handleSave} className="flex flex-col gap-3">
           <div className="text-sm text-gray-500">
             <p>이메일: {session?.user.email}</p>
-            <p>권한: {profile ? ROLE_LABELS[profile.role] : '-'}</p>
+            <p>클럽 권한: {clubRoleLabel}</p>
+            {profile?.is_platform_admin && (
+              <p className="mt-1 text-amber-700">플랫폼 슈퍼관리자 (클럽 생성 등)</p>
+            )}
           </div>
 
           <label className="flex flex-col gap-1">

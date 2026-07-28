@@ -23,8 +23,8 @@ function toProfile(
     is_guest: Boolean(row.is_guest),
     affiliation: aff ? aff : null,
     is_platform_admin: isPlatformAdmin,
-    // 플랫폼 슈퍼만 admin 표시. 클럽 역할은 clubStore가 덮어씀
-    role: isPlatformAdmin ? 'admin' : 'user',
+    // 클럽 역할은 clubStore가 덮어씀. 프로필 단독 조회 시 기본 user
+    role: 'user',
   }
 }
 

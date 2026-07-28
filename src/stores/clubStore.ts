@@ -38,12 +38,12 @@ export const useClubStore = create<ClubState>((set) => ({
     const myClubs = await listMyClubs()
     const membership = myClubs.find((c) => c.club_id === club.id) ?? null
 
+    // 클럽 안에서의 UI 권한은 club_members.role 만 사용.
+    // is_platform_admin 은 /platform·클럽 진입 우회용이며 클럽 관리자로 위장하지 않음.
     const auth = useAuthStore.getState()
     if (auth.profile) {
-      let role: UserRole = auth.profile.role
-      if (auth.profile.is_platform_admin) role = 'admin'
-      else if (membership?.status === 'active') role = membership.role as UserRole
-      else role = 'user'
+      const role: UserRole =
+        membership?.status === 'active' ? (membership.role as UserRole) : 'user'
       useAuthStore.setState({
         profile: { ...auth.profile, role },
       })
