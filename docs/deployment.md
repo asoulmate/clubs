@@ -22,6 +22,7 @@ SQL Editor에서 순서대로 실행:
 14. `supabase/migrations/16_updates.sql` (게스트 삭제·회원 탈퇴)
 15. `supabase/migrations/17_multi_club.sql` (멀티 클럽: clubs / club_members / club_settings)
 16. `supabase/migrations/18_updates.sql` (회원가입용 공개 클럽 목록)
+17. `supabase/migrations/19_updates.sql` (morning-star 클럽명 → 모닝스타)
 
 ### 1-2. 최초 관리자 지정
 

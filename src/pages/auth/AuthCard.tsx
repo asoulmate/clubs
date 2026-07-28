@@ -9,7 +9,7 @@ export function AuthCard({ title, children }: { title: string; children: ReactNo
           <div className="text-3xl" aria-hidden="true">
             🎾
           </div>
-          <h1 className="mt-1 text-xl font-extrabold text-green-800">클럽스</h1>
+          <h1 className="mt-1 text-xl font-extrabold text-green-800">창원테니스클럽</h1>
           <p className="mt-1 text-base font-semibold text-gray-700">{title}</p>
         </div>
         {children}
