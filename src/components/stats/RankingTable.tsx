@@ -107,9 +107,9 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
 
   const hasTies = rows.some((r) => r.ties > 0)
 
-  const stickyRank = 'sticky left-0 z-10 w-14 min-w-14'
-  const stickyName = 'sticky left-14 z-10 border-r border-gray-200'
-  const numCell = 'whitespace-nowrap px-2.5 py-2 text-center tabular-nums'
+  const stickyRank = 'sticky left-0 z-10 w-14 min-w-14 align-middle'
+  const stickyName = 'sticky left-14 z-10 border-r border-gray-200 align-middle'
+  const numCell = 'whitespace-nowrap px-2.5 py-2 text-center align-middle tabular-nums'
   const numHead = 'whitespace-nowrap px-2.5 py-3 text-center font-semibold'
 
   const toggleSort = (key: SortKey) => {
@@ -239,13 +239,16 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
                     )}
                   </td>
                   <td className={`${stickyName} ${podium.sticky} whitespace-nowrap px-2 py-2`}>
-                    <PlayerNameButton
-                      userId={row.user_id}
-                      name={row.name}
-                      awardLevel={row.award_level}
-                      affiliation={row.is_guest ? row.affiliation : null}
-                      className="min-h-9 items-start justify-start"
-                    />
+                    <div className="flex min-h-11 items-center">
+                      <PlayerNameButton
+                        userId={row.user_id}
+                        name={row.name}
+                        awardLevel={row.award_level}
+                        affiliation={row.is_guest ? row.affiliation : null}
+                        affiliationClassName="text-xs"
+                        className="min-h-0 items-start justify-center py-0"
+                      />
+                    </div>
                   </td>
                   <td className={numCell}>{row.matches_played}</td>
                   <td className={`${numCell} font-semibold text-green-700`}>{row.wins}</td>
