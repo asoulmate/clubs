@@ -52,6 +52,18 @@ export async function adminResetUserPassword(userId: string): Promise<void> {
   if (error) throw error
 }
 
+/**
+ * 게스트 삭제 또는 회원 탈퇴
+ * 반환: guest_deleted | guest_deactivated | member_withdrawn | member_deactivated
+ */
+export async function adminRemoveUser(userId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_remove_user', {
+    p_user_id: userId,
+  })
+  if (error) throw error
+  return (data as string) ?? 'ok'
+}
+
 /** 슬롯 참가자 강제 변경 (userId가 null이면 비우기) */
 export async function adminSetPlayer(
   matchId: string,

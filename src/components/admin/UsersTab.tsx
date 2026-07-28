@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { AWARD_LEVEL_LABELS, AWARD_LEVEL_OPTIONS, ROLE_LABELS } from '../../constants/labels'
 import { useDebounce } from '../../hooks/useDebounce'
 import {
+  adminRemoveUser,
   adminResetUserPassword,
   adminUpdateUser,
   fetchAllUsers,
@@ -10,7 +11,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { AwardLevel, Profile, UserRole } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
-import { isAdmin } from '../../utils/permissions'
+import { isAdmin, isAdminOrSub } from '../../utils/permissions'
 import { Dialog } from '../common/Dialog'
 import { Spinner } from '../common/Spinner'
 
@@ -143,6 +144,7 @@ export function UsersTab() {
 
   const canChangeRole = isAdmin(myProfile)
   const canEditProfile = isAdmin(myProfile)
+  const canRemoveUser = isAdminOrSub(myProfile)
 
   const load = useCallback(async () => {
     try {
@@ -190,6 +192,37 @@ export function UsersTab() {
     }
   }
 
+  const canShowRemove = (user: Profile) => {
+    if (!canRemoveUser || !myProfile) return false
+    if (user.id === myProfile.id) return false
+    if (user.is_guest) return true
+    if (user.role === 'admin') return false
+    if (user.role === 'sub_admin') return isAdmin(myProfile)
+    return true
+  }
+
+  const removeUser = async (user: Profile) => {
+    const message = user.is_guest
+      ? `${user.name} 님(게스트)을 삭제할까요?\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록이 있으면 삭제 대신 비활성화됩니다.`
+      : `${user.name} 님을 탈퇴 처리할까요?\n· 로그인 계정이 삭제되며 재가입이 필요합니다.\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록은 통계용으로 남습니다.`
+    if (!window.confirm(message)) return
+    try {
+      const result = await adminRemoveUser(user.id)
+      if (result === 'guest_deleted') {
+        showToast('게스트가 삭제되었습니다.', 'success')
+      } else if (result === 'guest_deactivated') {
+        showToast('확정 기록이 있어 게스트를 비활성화했습니다.', 'success')
+      } else if (result === 'member_withdrawn') {
+        showToast('회원 탈퇴가 처리되었습니다.', 'success')
+      } else {
+        showToast('계정이 비활성화되었습니다.', 'success')
+      }
+      void load()
+    } catch (err) {
+      showToast(toErrorMessage(err), 'error')
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <input
@@ -203,6 +236,11 @@ export function UsersTab() {
       {canEditProfile && (
         <p className="text-xs text-gray-500">
           메인 관리자는 회원 편집에서 이름·입상 변경 및 비밀번호 초기화(123456)가 가능합니다.
+        </p>
+      )}
+      {canRemoveUser && (
+        <p className="text-xs text-gray-500">
+          관리자/서브관리자는 게스트 삭제·회원 탈퇴를 할 수 있습니다. 확정 경기 기록은 보존됩니다.
         </p>
       )}
 
@@ -283,6 +321,16 @@ export function UsersTab() {
                 >
                   {user.is_active ? '비활성화' : user.is_guest ? '활성화' : '승인/활성화'}
                 </button>
+
+                {canShowRemove(user) && (
+                  <button
+                    type="button"
+                    onClick={() => void removeUser(user)}
+                    className="h-10 rounded-lg bg-red-600 px-3 text-sm font-bold text-white active:bg-red-700"
+                  >
+                    {user.is_guest ? '삭제' : '탈퇴'}
+                  </button>
+                )}
               </div>
             </div>
           ))}
