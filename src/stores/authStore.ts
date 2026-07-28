@@ -32,13 +32,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     initStarted = true
 
     const applySession = async (session: Session | null) => {
+      const { useClubStore } = await import('./clubStore')
+      const clubState = useClubStore.getState()
+      const prevUserId = get().session?.user?.id
+      const nextUserId = session?.user?.id
+
+      // 로그아웃 또는 다른 계정으로 전환 시 클럽 캐시 전부 제거
+      if (!nextUserId || (prevUserId && prevUserId !== nextUserId)) {
+        clubState.clearClub()
+      } else if (
+        nextUserId &&
+        clubState.loadedForUserId &&
+        clubState.loadedForUserId !== nextUserId
+      ) {
+        clubState.clearClub()
+      }
+
       if (session?.user) {
         try {
           let profile = await fetchMyProfile(session.user.id)
-          // 클럽 컨텍스트 역할 유지 (순환 import 회피: 동적 import)
-          const { useClubStore } = await import('./clubStore')
           const membership = useClubStore.getState().membership
-          if (profile && membership?.status === 'active') {
+          // 클럽 멤버십이 현재 사용자 캐시와 일치할 때만 역할 반영
+          if (
+            profile &&
+            membership?.status === 'active' &&
+            useClubStore.getState().loadedForUserId === session.user.id
+          ) {
             profile = { ...profile, role: membership.role }
           }
           set({ session, profile, initialized: true })
@@ -46,7 +65,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           set({ session, profile: null, initialized: true })
         }
       } else {
-        const { useClubStore } = await import('./clubStore')
         useClubStore.getState().clearClub()
         set({ session: null, profile: null, initialized: true })
       }
@@ -70,9 +88,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!session?.user) return
     let profile = await fetchMyProfile(session.user.id)
     const { useClubStore } = await import('./clubStore')
-    const membership = useClubStore.getState().membership
-    if (profile && membership?.status === 'active') {
-      profile = { ...profile, role: membership.role }
+    const clubState = useClubStore.getState()
+    if (
+      profile &&
+      clubState.membership?.status === 'active' &&
+      clubState.loadedForUserId === session.user.id
+    ) {
+      profile = { ...profile, role: clubState.membership.role }
     }
     set({ profile })
   },

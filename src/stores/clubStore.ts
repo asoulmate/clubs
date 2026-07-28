@@ -8,44 +8,56 @@ interface ClubState {
   membership: ClubMembership | null
   myClubs: ClubMembership[]
   loaded: boolean
+  /** 멤버십을 로드한 사용자 id (계정 전환 시 캐시 무효화) */
+  loadedForUserId: string | null
   loadMyClubs: () => Promise<void>
   /** URL 슬러그로 클럽 진입. 멤버십 역할로 profile.role 동기화 */
   enterClubBySlug: (slug: string) => Promise<void>
+  /** 로그아웃·계정 전환 시 클럽 캐시 전부 초기화 */
   clearClub: () => void
 }
 
-export const useClubStore = create<ClubState>((set, get) => ({
+export const useClubStore = create<ClubState>((set) => ({
   club: null,
   membership: null,
   myClubs: [],
   loaded: false,
+  loadedForUserId: null,
 
   loadMyClubs: async () => {
+    const userId = useAuthStore.getState().session?.user?.id ?? null
     const myClubs = await listMyClubs()
-    set({ myClubs, loaded: true })
+    set({ myClubs, loaded: true, loadedForUserId: userId })
   },
 
   enterClubBySlug: async (slug: string) => {
     const club = await getClubBySlug(slug)
-    let myClubs = get().myClubs
-    if (!get().loaded) {
-      myClubs = await listMyClubs()
-    }
+    const userId = useAuthStore.getState().session?.user?.id ?? null
+
+    // 항상 현재 세션 기준으로 멤버십 재조회 (이전 계정 캐시 사용 금지)
+    const myClubs = await listMyClubs()
     const membership = myClubs.find((c) => c.club_id === club.id) ?? null
 
-    // 활성 멤버·플랫폼 슈퍼의 클럽 역할을 프로필 role에 반영 (기존 권한 UI 재사용)
     const auth = useAuthStore.getState()
     if (auth.profile) {
       let role: UserRole = auth.profile.role
       if (auth.profile.is_platform_admin) role = 'admin'
       else if (membership?.status === 'active') role = membership.role as UserRole
+      else role = 'user'
       useAuthStore.setState({
         profile: { ...auth.profile, role },
       })
     }
 
-    set({ club, membership, myClubs, loaded: true })
+    set({ club, membership, myClubs, loaded: true, loadedForUserId: userId })
   },
 
-  clearClub: () => set({ club: null, membership: null }),
+  clearClub: () =>
+    set({
+      club: null,
+      membership: null,
+      myClubs: [],
+      loaded: false,
+      loadedForUserId: null,
+    }),
 }))
