@@ -28,8 +28,10 @@ import {
 } from '../../utils/permissions'
 import { winnerTeam } from '../../utils/score'
 import { youtubeWatchUrl } from '../../services/youtubeService'
+import { MATCH_TYPE_LABELS } from '../../constants/labels'
 import { PlayerNameButton } from '../players/PlayerNameButton'
-import { MatchBettingPanel } from './MatchBettingPanel'
+import { BettingCountdown } from './BettingCountdown'
+import { MatchBettingDialog } from './MatchBettingDialog'
 import { RegisterSlotDialog } from './RegisterSlotDialog'
 import { ScoreDialog } from './ScoreDialog'
 import { StatusBadge } from './StatusBadge'
@@ -47,6 +49,12 @@ interface MatchCardProps {
 const TEAM_POSITIONS: Record<TeamSide, PlayerPosition[]> = {
   A: ['A1', 'A2'],
   B: ['B1', 'B2'],
+}
+
+/** 단식은 팀당 1자리만 표시 */
+const SINGLES_TEAM_POSITIONS: Record<TeamSide, PlayerPosition[]> = {
+  A: ['A1'],
+  B: ['B1'],
 }
 
 // 상태별 카드 테두리 + 부드러운 배경색 (색상만으로 구분하지 않고 배지 텍스트·아이콘과 함께 사용)
@@ -71,7 +79,11 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
   const [registerPosition, setRegisterPosition] = useState<PlayerPosition | null>(null)
   const [scoreOpen, setScoreOpen] = useState(false)
   const [youtubeOpen, setYoutubeOpen] = useState(false)
+  const [bettingOpen, setBettingOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  const isSingles = match.match_type === 'singles'
+  const teamPositions = isSingles ? SINGLES_TEAM_POSITIONS : TEAM_POSITIONS
 
   const playerAt = (position: PlayerPosition): MatchPlayer | undefined =>
     match.players.find((p) => p.position === position)
@@ -211,9 +223,21 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
     >
       {/* 헤더: 경기 번호 + 상태 + 삭제/취소 */}
       <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-bold text-gray-700">#{index}</span>
           <StatusBadge status={match.status} />
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              isSingles ? 'bg-purple-50 text-purple-700' : 'bg-sky-50 text-sky-700'
+            }`}
+          >
+            {MATCH_TYPE_LABELS[match.match_type]}
+          </span>
+          {match.is_betting && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+              💰 배팅
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {profile && canCancelMatch(profile, match) && (
@@ -243,7 +267,7 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
       <div className="grid grid-cols-[1fr_auto_auto_auto_1fr] items-center gap-x-2">
         <div className="flex flex-col gap-1.5">
           <p className="text-center text-xs font-bold text-gray-500">A팀</p>
-          {TEAM_POSITIONS.A.map(renderSlot)}
+          {teamPositions.A.map(renderSlot)}
         </div>
 
         {renderScore('A')}
@@ -252,14 +276,14 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
 
         <div className="flex flex-col gap-1.5">
           <p className="text-center text-xs font-bold text-gray-500">B팀</p>
-          {TEAM_POSITIONS.B.map(renderSlot)}
+          {teamPositions.B.map(renderSlot)}
         </div>
       </div>
 
-      {/* 액션 버튼 */}
+      {/* 액션 버튼 (경기 시작은 배팅 경기에서만) */}
       {!isCanceled && profile && (
         <div className="mt-2.5 flex flex-wrap gap-2">
-          {match.status === 'ready' && isParticipant(profile.id, match) && (
+          {match.is_betting && match.status === 'ready' && isParticipant(profile.id, match) && (
             <button
               type="button"
               disabled={busy}
@@ -331,7 +355,29 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
         </div>
       )}
 
-      {!isCanceled && profile && <MatchBettingPanel match={match} />}
+      {/* 배팅 경기: 마감 카운트다운 + 배팅 다이얼로그 버튼 */}
+      {match.is_betting && !isCanceled && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          {match.betting_deadline ? (
+            <BettingCountdown
+              deadline={match.betting_deadline}
+              settled={match.status === 'confirmed'}
+            />
+          ) : (
+            <span className="text-xs text-gray-400">배팅 경기</span>
+          )}
+          {profile && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setBettingOpen(true)}
+              className="h-10 rounded-xl border border-amber-400 bg-amber-50 px-3 text-sm font-bold text-amber-800 active:bg-amber-100 disabled:opacity-50"
+            >
+              💰 배팅 참여·현황
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 다이얼로그 */}
       {registerPosition && (
@@ -352,6 +398,9 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
           onClose={() => setYoutubeOpen(false)}
           onChanged={onChanged}
         />
+      )}
+      {bettingOpen && (
+        <MatchBettingDialog match={match} onClose={() => setBettingOpen(false)} />
       )}
     </article>
   )

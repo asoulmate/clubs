@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { DateNavigator } from '../components/common/DateNavigator'
 import { Spinner } from '../components/common/Spinner'
 import { RankingTable } from '../components/stats/RankingTable'
+import { MATCH_TYPE_LABELS } from '../constants/labels'
 import { fetchPlayerStats } from '../services/statsService'
 import { useClubStore } from '../stores/clubStore'
 import { useSettingsStore } from '../stores/settingsStore'
-import type { PlayerStatsRow } from '../types/domain'
+import type { MatchType, PlayerStatsRow } from '../types/domain'
 import { addDaysToDateString, todayKst } from '../utils/kst'
 import { getPeriodRange, PERIOD_OPTIONS, type PeriodType } from '../utils/period'
 import { buildRanking } from '../utils/ranking'
@@ -17,6 +18,7 @@ export function ResultsPage() {
   const settings = useSettingsStore((s) => s.settings)
   const clubId = useClubStore((s) => s.club?.id)
   const [period, setPeriod] = useState<PeriodType>('daily')
+  const [matchType, setMatchType] = useState<MatchType>('doubles')
   const [anchorDate, setAnchorDate] = useState(() => todayKst())
   const [customFrom, setCustomFrom] = useState(() => addDaysToDateString(todayKst(), -7))
   const [customTo, setCustomTo] = useState(() => todayKst())
@@ -39,7 +41,7 @@ export function ResultsPage() {
     setLoading(true)
     setError(null)
 
-    void fetchPlayerStats(range.from, range.to, clubId)
+    void fetchPlayerStats(range.from, range.to, clubId, matchType)
       .then((data) => {
         if (!stale) setRows(data)
       })
@@ -53,7 +55,7 @@ export function ResultsPage() {
     return () => {
       stale = true
     }
-  }, [range.from, range.to, clubId])
+  }, [range.from, range.to, clubId, matchType])
 
   const ranked = useMemo(
     () => buildRanking(rows, settings.min_matches_for_ranking),
@@ -65,6 +67,22 @@ export function ResultsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* 단식/복식 분리 집계 */}
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1">
+        {(['doubles', 'singles'] as MatchType[]).map((type) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => setMatchType(type)}
+            className={`h-10 rounded-lg text-sm font-bold ${
+              matchType === type ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            {MATCH_TYPE_LABELS[type]}
+          </button>
+        ))}
+      </div>
+
       {/* 기간 유형 선택 (터치 영역 확보) */}
       <div className="grid grid-cols-6 gap-1 rounded-xl bg-gray-200 p-1">
         {PERIOD_OPTIONS.map((opt) => (
@@ -107,7 +125,9 @@ export function ResultsPage() {
         </div>
       )}
 
-      <h2 className="text-lg font-bold text-gray-800">{range.label} 순위</h2>
+      <h2 className="text-lg font-bold text-gray-800">
+        {range.label} {MATCH_TYPE_LABELS[matchType]} 순위
+      </h2>
 
       {loading ? (
         <div className="flex justify-center py-16">

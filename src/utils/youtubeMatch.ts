@@ -1,4 +1,5 @@
 import type { MatchWithPlayers } from '../types/domain'
+import { requiredPlayerCount } from '../types/domain'
 import { addDaysToDateString } from './kst'
 
 // ============================================================
@@ -185,11 +186,12 @@ function toYmd(y: number, month: number, day: number): string | null {
   return `${y}-${mm}-${dd}`
 }
 
-/** 경기의 참가자 이름 4명 (부족하면 null) */
+/** 경기의 참가자 이름 (단식 2명 / 복식 4명 모두 편성되지 않으면 null) */
 export function getMatchPlayerNames(match: MatchWithPlayers): string[] | null {
-  if (match.players.length < 4) return null
+  const required = requiredPlayerCount(match.match_type)
+  if (match.players.length < required) return null
   const names = match.players.map((p) => p.profile?.name).filter((n): n is string => Boolean(n))
-  return names.length === 4 ? names : null
+  return names.length === required ? names : null
 }
 
 /** 동일 페어 판별용 키 (이름 정렬) */
@@ -239,7 +241,7 @@ export function scoreVideoAgainstMatch(
         (titleDate === match.match_date ? 20 : 0),
       reason:
         titleDate === match.match_date
-          ? '제목 날짜·선수 4명 일치'
+          ? '제목 날짜·선수 전원 일치'
           : `제목 날짜 ${titleDate}·선수 일치 (경기일 ±${windowDays}일)`,
     }
   }

@@ -14,6 +14,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useClubStore } from '../stores/clubStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useToastStore } from '../stores/toastStore'
+import { requiredPlayerCount } from '../types/domain'
 import { toErrorMessage } from '../utils/errors'
 import { todayKst } from '../utils/kst'
 
@@ -32,7 +33,10 @@ export function MatchesPage() {
   const showToast = useToastStore((s) => s.show)
 
   const unlinkedCount = matches.filter(
-    (m) => !m.youtube_video_id && m.status !== 'canceled' && m.players.length >= 4,
+    (m) =>
+      !m.youtube_video_id &&
+      m.status !== 'canceled' &&
+      m.players.length >= requiredPlayerCount(m.match_type),
   ).length
 
   const runManualLink = async () => {

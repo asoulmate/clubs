@@ -1,5 +1,5 @@
 import type { MatchWithPlayers, Profile } from '../types/domain'
-import { positionTeam } from '../types/domain'
+import { positionTeam, requiredPlayerCount } from '../types/domain'
 
 // ============================================================
 // 권한 판정 공통 함수
@@ -34,7 +34,8 @@ export function isParticipant(userId: string | undefined, match: MatchWithPlayer
 export function canSubmitScore(profile: Profile | null, match: MatchWithPlayers): boolean {
   if (!profile) return false
   if (match.status === 'canceled' || match.status === 'confirmed') return false
-  if (match.players.length < 4) return false
+  // 단식 2명 / 복식 4명이 모두 편성되어야 입력 가능
+  if (match.players.length < requiredPlayerCount(match.match_type)) return false
   return isParticipant(profile.id, match) || isAdminOrSub(profile)
 }
 

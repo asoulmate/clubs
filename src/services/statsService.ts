@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type {
+  MatchType,
   MonthlyTrendRow,
   OpponentStatsRow,
   PartnerStatsRow,
@@ -12,16 +13,18 @@ import type {
 // 집계는 전부 DB(RPC)에서 수행하고 프런트는 결과만 받아 순위를 부여한다.
 // ============================================================
 
-/** 기간별 전체 사용자 집계 (확정 경기만 포함) */
+/** 기간별 전체 사용자 집계 (확정 경기만 포함). matchType 생략 시 단식+복식 전체 */
 export async function fetchPlayerStats(
   from: string,
   to: string,
   clubId: string,
+  matchType: MatchType | null = null,
 ): Promise<PlayerStatsRow[]> {
   const { data, error } = await supabase.rpc('get_player_stats', {
     p_from: from,
     p_to: to,
     p_club_id: clubId,
+    p_match_type: matchType,
   })
   if (error) throw error
   return ((data ?? []) as PlayerStatsRow[]).map((row) => ({

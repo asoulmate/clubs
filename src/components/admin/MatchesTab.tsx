@@ -148,10 +148,16 @@ function AdminPlayersDialog({
     }
   }
 
+  // 단식은 A1/B1만 편성 대상
+  const positions =
+    match.match_type === 'singles'
+      ? ALL_POSITIONS.filter((p) => p === 'A1' || p === 'B1')
+      : ALL_POSITIONS
+
   return (
     <Dialog open onClose={onClose} title="참가자 강제 변경">
       <div className="flex flex-col gap-3">
-        {ALL_POSITIONS.map((position) => {
+        {positions.map((position) => {
           const player = playerAt(position)
           return (
             <div key={position} className="flex flex-col gap-1.5">

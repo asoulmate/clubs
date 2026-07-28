@@ -50,7 +50,7 @@ export function YoutubeLinkDialog({
       setCandidates(list)
       if (list.length === 0) {
         setError(
-          '이름 4명이 모두 제목에 포함된 후보가 없습니다. 링크를 직접 붙여넣거나, 업로드·핸들·허용 일수를 확인해주세요.',
+          '참가자 이름이 모두 제목에 포함된 후보가 없습니다. 링크를 직접 붙여넣거나, 업로드·핸들·허용 일수를 확인해주세요.',
         )
       }
     } catch (err) {
@@ -114,7 +114,7 @@ export function YoutubeLinkDialog({
     <Dialog open onClose={onClose} title="유튜브 연결">
       <div className="flex flex-col gap-4">
         <p className="text-sm text-gray-500">
-          제목에 선수 이름 4명이 들어간 영상을 찾습니다. 업로드일(및 제목 날짜)이 경기일
+          제목에 참가자 이름이 모두 들어간 영상을 찾습니다. 업로드일(및 제목 날짜)이 경기일
           ±2일 이내인 영상만 후보입니다. 이미 연결된 경기는 자동 매칭에서 건너뜁니다.
         </p>
 

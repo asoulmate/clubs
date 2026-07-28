@@ -4,7 +4,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { useClubStore } from '../../stores/clubStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useToastStore } from '../../stores/toastStore'
-import type { AppSettings, ConfirmMode } from '../../types/domain'
+import type { AppSettings, ConfirmMode, MatchType } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 import { isAdmin } from '../../utils/permissions'
 
@@ -155,6 +155,24 @@ export function SystemSettingsTab() {
           >
             <option value="false">비활성화 (즉시 이용)</option>
             <option value="true">활성화 (승인 필요)</option>
+          </select>
+        </div>
+
+        <div className={rowClass}>
+          <div>
+            <p className="font-semibold">경기 만들기 기본 유형</p>
+            <p className="text-xs text-gray-400">
+              신규 경기 만들기 화면에서 기본으로 선택되는 유형 (만들 때 변경 가능)
+            </p>
+          </div>
+          <select
+            value={settings.default_match_type}
+            disabled={readOnly || saving}
+            onChange={(e) => void save('default_match_type', e.target.value as MatchType)}
+            className={selectClass}
+          >
+            <option value="doubles">복식 (2:2)</option>
+            <option value="singles">단식 (1:1)</option>
           </select>
         </div>
 

@@ -17,6 +17,9 @@ export async function fetchClubSettings(clubId: string): Promise<AppSettings> {
       record[row.key] = row.value
     }
   }
+  if (merged.default_match_type !== 'singles' && merged.default_match_type !== 'doubles') {
+    merged.default_match_type = DEFAULT_SETTINGS.default_match_type
+  }
   if (typeof merged.youtube_channel_handle !== 'string') {
     merged.youtube_channel_handle = DEFAULT_SETTINGS.youtube_channel_handle
   } else {

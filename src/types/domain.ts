@@ -11,6 +11,14 @@ export type AwardLevel = 'open' | 'national_rookie' | 'local_rookie' | 'none'
 /** 경기 상태 */
 export type MatchStatus = 'open' | 'ready' | 'in_progress' | 'submitted' | 'confirmed' | 'canceled'
 
+/** 경기 유형: 단식(팀당 1명) / 복식(팀당 2명) */
+export type MatchType = 'singles' | 'doubles'
+
+/** 경기 유형별 필요 참가자 수 */
+export function requiredPlayerCount(matchType: MatchType): number {
+  return matchType === 'singles' ? 2 : 4
+}
+
 /** 참가자 포지션 */
 export type PlayerPosition = 'A1' | 'A2' | 'B1' | 'B2'
 
@@ -73,6 +81,12 @@ export interface Match {
   match_date: string
   created_by: string
   status: MatchStatus
+  /** 단식/복식 */
+  match_type: MatchType
+  /** true면 배팅 경기 (경기 시작 버튼은 배팅 경기에서만 사용) */
+  is_betting: boolean
+  /** 배팅 마감 시각 (배팅 경기에서만 존재, 경기 당일을 넘지 않음) */
+  betting_deadline: string | null
   team_a_score: number | null
   team_b_score: number | null
   score_submitted_by: string | null
@@ -132,6 +146,8 @@ export interface AppSettings {
   allow_proxy_registration: boolean
   /** true면 신규 가입 시 비활성(승인 대기), 관리자/서브가 활성화해야 이용 가능 */
   require_signup_approval: boolean
+  /** 경기 만들기 기본 유형 (단식/복식) */
+  default_match_type: MatchType
   /** YouTube 채널 핸들 (@ 제외) */
   youtube_channel_handle: string
   /** @deprecated 매칭은 고정 ±2일 창 사용. DB 호환용으로만 유지 */
@@ -145,6 +161,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   min_matches_for_ranking: 0,
   allow_proxy_registration: true,
   require_signup_approval: false,
+  default_match_type: 'doubles',
   youtube_channel_handle: '멍기멍기-k4q',
   youtube_upload_delay_days: 7,
 }
@@ -229,10 +246,10 @@ export interface RecentMatchRow {
   opponent_awards: AwardLevel[]
 }
 
-/** 배팅 금액 */
-export type BetAmount = 500 | 1000 | 2000
+/** 신규 배팅 가능 금액 (과거 기록에는 2000원이 있을 수 있음) */
+export type BetAmount = 500 | 1000
 
-export const BET_AMOUNTS: readonly BetAmount[] = [500, 1000, 2000]
+export const BET_AMOUNTS: readonly BetAmount[] = [500, 1000]
 
 /** 배팅 정산 결과 */
 export type BetResult = 'win' | 'loss' | 'push'
@@ -242,7 +259,8 @@ export interface MatchBet {
   match_id: string
   club_id: string
   user_id: string
-  amount: BetAmount
+  /** 500/1000 (과거 기록은 2000 가능) */
+  amount: number
   predicted_team: TeamSide
   result: BetResult | null
   settled_at: string | null
@@ -266,7 +284,8 @@ export interface RecentBetRow {
   bet_id: string
   match_id: string
   match_date: string
-  amount: BetAmount
+  /** 500/1000 (과거 기록은 2000 가능) */
+  amount: number
   predicted_team: TeamSide
   result: BetResult | null
   team_a_score: number | null

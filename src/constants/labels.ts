@@ -1,4 +1,10 @@
-import type { AwardLevel, MatchStatus, PlayerPosition, UserRole } from '../types/domain'
+import type { AwardLevel, MatchStatus, MatchType, PlayerPosition, UserRole } from '../types/domain'
+
+/** 경기 유형 한글 라벨 */
+export const MATCH_TYPE_LABELS: Record<MatchType, string> = {
+  singles: '단식',
+  doubles: '복식',
+}
 
 /** 입상 구분 한글 라벨 */
 export const AWARD_LEVEL_LABELS: Record<AwardLevel, string> = {

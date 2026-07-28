@@ -18,7 +18,7 @@ export async function fetchMatchBets(matchId: string): Promise<MatchBet[]> {
   if (error) throw error
   return ((data ?? []) as unknown as MatchBet[]).map((row) => ({
     ...row,
-    amount: row.amount as BetAmount,
+    amount: Number(row.amount),
     profile: row.profile ?? null,
   }))
 }
@@ -81,6 +81,6 @@ export async function fetchPlayerRecentBets(
   if (error) throw error
   return ((data ?? []) as RecentBetRow[]).map((row) => ({
     ...row,
-    amount: row.amount as BetAmount,
+    amount: Number(row.amount),
   }))
 }

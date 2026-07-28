@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { MatchWithPlayers, PlayerPosition } from '../types/domain'
+import type { MatchType, MatchWithPlayers, PlayerPosition } from '../types/domain'
 
 // ============================================================
 // 경기 데이터 접근 계층
@@ -64,6 +64,10 @@ function normalizeMatches(matches: MatchWithPlayers[]): MatchWithPlayers[] {
     youtube_video_id: m.youtube_video_id ?? null,
     youtube_title: m.youtube_title ?? null,
     youtube_matched_at: m.youtube_matched_at ?? null,
+    // 마이그레이션 이전 행 호환: 기본 복식 · 비배팅
+    match_type: m.match_type === 'singles' ? 'singles' : 'doubles',
+    is_betting: Boolean(m.is_betting),
+    betting_deadline: m.betting_deadline ?? null,
     players: (m.players ?? []).map((p) => ({
       ...p,
       profile: p.profile
@@ -78,20 +82,29 @@ function normalizeMatches(matches: MatchWithPlayers[]): MatchWithPlayers[] {
   }))
 }
 
+export interface CreateMatchInput {
+  matchDate: string
+  clubId: string
+  matchType: MatchType
+  a2: string | null
+  b1: string | null
+  b2: string | null
+  isBetting: boolean
+  /** 배팅 마감 시각 (ISO, 배팅 경기에서 필수) */
+  bettingDeadline: string | null
+}
+
 /** 신규 경기 생성 (생성자는 A1로 자동 등록됨). 생성된 경기 id 반환 */
-export async function createMatch(
-  matchDate: string,
-  clubId: string,
-  a2: string | null,
-  b1: string | null,
-  b2: string | null,
-): Promise<string> {
+export async function createMatch(input: CreateMatchInput): Promise<string> {
   const { data, error } = await supabase.rpc('create_match', {
-    p_match_date: matchDate,
-    p_club_id: clubId,
-    p_a2: a2,
-    p_b1: b1,
-    p_b2: b2,
+    p_match_date: input.matchDate,
+    p_club_id: input.clubId,
+    p_a2: input.matchType === 'singles' ? null : input.a2,
+    p_b1: input.b1,
+    p_b2: input.matchType === 'singles' ? null : input.b2,
+    p_match_type: input.matchType,
+    p_is_betting: input.isBetting,
+    p_betting_deadline: input.isBetting ? input.bettingDeadline : null,
   })
   if (error) throw error
   return data as string

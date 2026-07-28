@@ -8,6 +8,9 @@ import { useToastStore } from '../../stores/toastStore'
 import { toErrorMessage } from '../../utils/errors'
 import { Spinner } from '../common/Spinner'
 
+/** 클럽 밖(클럽 선택·로그인 등)에서 쓰는 기본 브라우저 탭 제목 */
+const DEFAULT_DOCUMENT_TITLE = '창원테니스클럽'
+
 /** URL 슬러그로 클럽 진입 · 멤버십 게이트 */
 export function ClubGate() {
   const { clubSlug } = useParams<{ clubSlug: string }>()
@@ -53,6 +56,15 @@ export function ClubGate() {
       stale = true
     }
   }, [clubSlug, enterClubBySlug, loadSettings])
+
+  // 브라우저 탭 제목: 클럽 페이지에서는 클럽 이름, 벗어나면 기본 제목으로 복원
+  useEffect(() => {
+    const name = club?.name?.trim()
+    document.title = name ? name : DEFAULT_DOCUMENT_TITLE
+    return () => {
+      document.title = DEFAULT_DOCUMENT_TITLE
+    }
+  }, [club?.name])
 
   const handleJoin = async () => {
     if (!club) return
