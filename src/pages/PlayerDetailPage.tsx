@@ -10,14 +10,17 @@ import {
   fetchPlayerSummary,
   fetchRecentMatches,
 } from '../services/statsService'
+import { fetchPlayerBetStats, fetchPlayerRecentBets } from '../services/betService'
 import { useClubStore } from '../stores/clubStore'
 import type {
   AwardLevel,
   MonthlyTrendRow,
   OpponentStatsRow,
   PartnerStatsRow,
+  PlayerBetStats,
   PlayerStatsRow,
   Profile,
+  RecentBetRow,
   RecentMatchRow,
 } from '../types/domain'
 import { formatDateKorean } from '../utils/kst'
@@ -82,6 +85,8 @@ export function PlayerDetailPage() {
   const [opponents, setOpponents] = useState<OpponentStatsRow[]>([])
   const [trend, setTrend] = useState<MonthlyTrendRow[]>([])
   const [recent, setRecent] = useState<RecentMatchRow[]>([])
+  const [betStats, setBetStats] = useState<PlayerBetStats | null>(null)
+  const [recentBets, setRecentBets] = useState<RecentBetRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -98,8 +103,10 @@ export function PlayerDetailPage() {
       fetchOpponentStats(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to, clubId),
       fetchMonthlyTrend(userId, clubId),
       fetchRecentMatches(userId, clubId, 10),
+      fetchPlayerBetStats(userId, clubId),
+      fetchPlayerRecentBets(userId, clubId, 15),
     ])
-      .then(([p, s, pt, op, tr, rc]) => {
+      .then(([p, s, pt, op, tr, rc, bs, rb]) => {
         if (stale) return
         setProfile(p)
         setStats(s)
@@ -107,6 +114,8 @@ export function PlayerDetailPage() {
         setOpponents(op)
         setTrend(tr)
         setRecent(rc)
+        setBetStats(bs)
+        setRecentBets(rb)
       })
       .catch(() => {
         if (!stale) setError('기록을 불러오지 못했습니다. 네트워크 상태를 확인해주세요.')
@@ -171,6 +180,67 @@ export function PlayerDetailPage() {
         <StatCard label="참가율" value={`${participationRate.toFixed(0)}%`} />
         <StatCard label="무단 결석" value={`${stats?.absences ?? 0}회`} highlight />
       </div>
+
+      {/* 배팅 기록 */}
+      <section>
+        <h2 className="mb-2 text-lg font-bold">배팅 기록</h2>
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <StatCard label="배팅 승(적중)" value={`${betStats?.bets_won ?? 0}`} />
+          <StatCard label="배팅 패(미적중)" value={`${betStats?.bets_lost ?? 0}`} />
+          <StatCard
+            label="적중 금액"
+            value={`${(betStats?.amount_won ?? 0).toLocaleString('ko-KR')}원`}
+          />
+          <StatCard
+            label="미적중 금액"
+            value={`${(betStats?.amount_lost ?? 0).toLocaleString('ko-KR')}원`}
+          />
+        </div>
+        {(betStats?.bets_open ?? 0) > 0 && (
+          <p className="mb-2 text-xs text-gray-500">진행 중 배팅 {betStats?.bets_open}건</p>
+        )}
+        {recentBets.length === 0 ? (
+          <p className="rounded-xl bg-white py-6 text-center text-sm text-gray-500 shadow-sm">
+            아직 배팅 기록이 없습니다.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+            {recentBets.map((b) => {
+              const resultLabel =
+                b.result === 'win' ? '적중' : b.result === 'loss' ? '미적중' : b.result === 'push' ? '무효' : '대기'
+              const resultStyle =
+                b.result === 'win'
+                  ? 'bg-green-100 text-green-800'
+                  : b.result === 'loss'
+                    ? 'bg-red-100 text-red-700'
+                    : b.result === 'push'
+                      ? 'bg-gray-100 text-gray-600'
+                      : 'bg-amber-100 text-amber-800'
+              return (
+                <div
+                  key={b.bet_id}
+                  className="flex items-center justify-between border-b border-gray-50 px-4 py-3 last:border-b-0"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {formatDateKorean(b.match_date)} · {b.predicted_team}팀 승
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {b.amount.toLocaleString('ko-KR')}원
+                      {b.team_a_score != null && b.team_b_score != null
+                        ? ` · 결과 ${b.team_a_score}:${b.team_b_score}`
+                        : ''}
+                    </p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${resultStyle}`}>
+                    {resultLabel}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
 
       {/* 파트너별 기록 */}
       <section>

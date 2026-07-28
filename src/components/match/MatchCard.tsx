@@ -29,6 +29,7 @@ import {
 import { winnerTeam } from '../../utils/score'
 import { youtubeWatchUrl } from '../../services/youtubeService'
 import { PlayerNameButton } from '../players/PlayerNameButton'
+import { MatchBettingPanel } from './MatchBettingPanel'
 import { RegisterSlotDialog } from './RegisterSlotDialog'
 import { ScoreDialog } from './ScoreDialog'
 import { StatusBadge } from './StatusBadge'
@@ -329,6 +330,8 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
           )}
         </div>
       )}
+
+      {!isCanceled && profile && <MatchBettingPanel match={match} />}
 
       {/* 다이얼로그 */}
       {registerPosition && (

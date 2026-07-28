@@ -228,3 +228,48 @@ export interface RecentMatchRow {
   /** 상대 입상 (opponent_names와 동일 순서) */
   opponent_awards: AwardLevel[]
 }
+
+/** 배팅 금액 */
+export type BetAmount = 500 | 1000 | 2000
+
+export const BET_AMOUNTS: readonly BetAmount[] = [500, 1000, 2000]
+
+/** 배팅 정산 결과 */
+export type BetResult = 'win' | 'loss' | 'push'
+
+export interface MatchBet {
+  id: string
+  match_id: string
+  club_id: string
+  user_id: string
+  amount: BetAmount
+  predicted_team: TeamSide
+  result: BetResult | null
+  settled_at: string | null
+  created_at: string
+  updated_at: string
+  profile?: Pick<Profile, 'id' | 'name'> | null
+}
+
+export interface PlayerBetStats {
+  bets_total: number
+  bets_won: number
+  bets_lost: number
+  bets_push: number
+  bets_open: number
+  amount_won: number
+  amount_lost: number
+  amount_total: number
+}
+
+export interface RecentBetRow {
+  bet_id: string
+  match_id: string
+  match_date: string
+  amount: BetAmount
+  predicted_team: TeamSide
+  result: BetResult | null
+  team_a_score: number | null
+  team_b_score: number | null
+  created_at: string
+}

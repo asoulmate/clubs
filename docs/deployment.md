@@ -25,6 +25,7 @@ SQL Editor에서 순서대로 실행:
 17. `supabase/migrations/19_updates.sql` (morning-star 클럽명 → 모닝스타)
 18. `supabase/migrations/20_updates.sql` (권한: club_members + is_platform_admin만 사용)
 19. `supabase/migrations/21_updates.sql` (잘못 남은 플랫폼 슈퍼 플래그 정리 예시)
+20. `supabase/migrations/22_betting.sql` (경기 승패 배팅)
 
 ### 1-2. 최초 관리자 지정
 
