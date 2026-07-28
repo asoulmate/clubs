@@ -57,7 +57,7 @@ export function canCancelMatch(profile: Profile | null, match: MatchWithPlayers)
 }
 
 /** 경기 삭제 버튼을 보여줄 수 있는지 (관리자/서브만) */
-export function canDeleteMatch(profile: Profile | null, match: MatchWithPlayers): boolean {
+export function canDeleteMatch(profile: Profile | null, _match: MatchWithPlayers): boolean {
   if (!profile) return false
   return isAdminOrSub(profile)
 }
