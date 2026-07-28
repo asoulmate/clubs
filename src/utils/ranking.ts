@@ -20,7 +20,7 @@ export function calcWinRate(wins: number, matches: number): number {
   return matches === 0 ? 0 : (wins / matches) * 100
 }
 
-/** 참가율 계산: 참가 일수 / 기간 내 경기가 개최된 날짜 수 */
+/** 참가율 계산: 개인 참가 일수 / 경기가 등록된 날짜 수 */
 export function calcParticipationRate(daysParticipated: number, totalMatchDays: number): number {
   return totalMatchDays === 0 ? 0 : (daysParticipated / totalMatchDays) * 100
 }
