@@ -10,6 +10,7 @@ import {
   fetchPlayerSummary,
   fetchRecentMatches,
 } from '../services/statsService'
+import { useClubStore } from '../stores/clubStore'
 import type {
   AwardLevel,
   MonthlyTrendRow,
@@ -74,6 +75,7 @@ const RESULT_STYLES = {
 /** 개인 상세 기록 페이지 */
 export function PlayerDetailPage() {
   const { userId } = useParams<{ userId: string }>()
+  const clubId = useClubStore((s) => s.club?.id)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [stats, setStats] = useState<PlayerStatsRow | null>(null)
   const [partners, setPartners] = useState<PartnerStatsRow[]>([])
@@ -84,18 +86,18 @@ export function PlayerDetailPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId || !clubId) return
     let stale = false
     setLoading(true)
     setError(null)
 
     void Promise.all([
       fetchProfileById(userId),
-      fetchPlayerSummary(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to),
-      fetchPartnerStats(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to),
-      fetchOpponentStats(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to),
-      fetchMonthlyTrend(userId),
-      fetchRecentMatches(userId, 10),
+      fetchPlayerSummary(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to, clubId),
+      fetchPartnerStats(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to, clubId),
+      fetchOpponentStats(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to, clubId),
+      fetchMonthlyTrend(userId, clubId),
+      fetchRecentMatches(userId, clubId, 10),
     ])
       .then(([p, s, pt, op, tr, rc]) => {
         if (stale) return
@@ -116,7 +118,7 @@ export function PlayerDetailPage() {
     return () => {
       stale = true
     }
-  }, [userId])
+  }, [userId, clubId])
 
   if (loading) {
     return (

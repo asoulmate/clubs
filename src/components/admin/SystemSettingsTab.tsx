@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { updateAppSetting } from '../../services/settingsService'
+import { updateClubSetting } from '../../services/clubSettingsService'
 import { useAuthStore } from '../../stores/authStore'
+import { useClubStore } from '../../stores/clubStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { AppSettings, ConfirmMode } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 import { isAdmin } from '../../utils/permissions'
 
-/** 관리자 - 시스템 설정 탭 (변경은 admin만 가능, RLS로 보호) */
+/** 관리자 - 시스템 설정 탭 (클럽 설정) */
 export function SystemSettingsTab() {
   const myProfile = useAuthStore((s) => s.profile)
+  const clubId = useClubStore((s) => s.club?.id)
   const { settings, load } = useSettingsStore()
   const showToast = useToastStore((s) => s.show)
   const [saving, setSaving] = useState(false)
@@ -17,10 +19,14 @@ export function SystemSettingsTab() {
   const readOnly = !isAdmin(myProfile)
 
   const save = async <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    if (!clubId) {
+      showToast('클럽 정보가 없습니다.', 'error')
+      return
+    }
     setSaving(true)
     try {
-      await updateAppSetting(key, value)
-      await load()
+      await updateClubSetting(clubId, key, value)
+      await load(clubId)
       showToast('설정이 저장되었습니다.', 'success')
     } catch (err) {
       showToast(toErrorMessage(err), 'error')

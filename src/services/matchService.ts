@@ -11,11 +11,15 @@ import type { MatchWithPlayers, PlayerPosition } from '../types/domain'
 const MATCH_SELECT = '*, players:match_players(*, profile:profiles!match_players_user_id_fkey(*))'
 
 /** 특정 날짜의 경기 목록 조회 (참가자 포함) */
-export async function fetchMatchesByDate(date: string): Promise<MatchWithPlayers[]> {
+export async function fetchMatchesByDate(
+  date: string,
+  clubId: string,
+): Promise<MatchWithPlayers[]> {
   const { data, error } = await supabase
     .from('matches')
     .select(MATCH_SELECT)
     .eq('match_date', date)
+    .eq('club_id', clubId)
     .order('created_at', { ascending: true })
 
   if (error) throw error
@@ -26,10 +30,12 @@ export async function fetchMatchesByDate(date: string): Promise<MatchWithPlayers
 export async function fetchMatchesByDateRange(
   fromDate: string,
   toDate: string,
+  clubId: string,
 ): Promise<MatchWithPlayers[]> {
   const { data, error } = await supabase
     .from('matches')
     .select(MATCH_SELECT)
+    .eq('club_id', clubId)
     .gte('match_date', fromDate)
     .lte('match_date', toDate)
     .order('match_date', { ascending: true })
@@ -65,6 +71,7 @@ function normalizeMatches(matches: MatchWithPlayers[]): MatchWithPlayers[] {
             ...p.profile,
             is_guest: Boolean(p.profile.is_guest),
             affiliation: p.profile.affiliation?.trim() ? p.profile.affiliation.trim() : null,
+            is_platform_admin: Boolean(p.profile.is_platform_admin),
           }
         : p.profile,
     })),
@@ -74,12 +81,14 @@ function normalizeMatches(matches: MatchWithPlayers[]): MatchWithPlayers[] {
 /** 신규 경기 생성 (생성자는 A1로 자동 등록됨). 생성된 경기 id 반환 */
 export async function createMatch(
   matchDate: string,
+  clubId: string,
   a2: string | null,
   b1: string | null,
   b2: string | null,
 ): Promise<string> {
   const { data, error } = await supabase.rpc('create_match', {
     p_match_date: matchDate,
+    p_club_id: clubId,
     p_a2: a2,
     p_b1: b1,
     p_b2: b2,
@@ -161,11 +170,12 @@ export async function deleteMatch(matchId: string): Promise<void> {
  * 현재 경기 중(in_progress)인 사용자 id 목록
  * 검색/편성 UI에서 제외하고, 최종 검증은 DB RPC가 수행한다.
  */
-export async function fetchInProgressUserIds(): Promise<string[]> {
+export async function fetchInProgressUserIds(clubId: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('match_players')
-    .select('user_id, matches!inner(status)')
+    .select('user_id, matches!inner(status, club_id)')
     .eq('matches.status', 'in_progress')
+    .eq('matches.club_id', clubId)
 
   if (error) throw error
   return [...new Set((data ?? []).map((row) => row.user_id as string))]

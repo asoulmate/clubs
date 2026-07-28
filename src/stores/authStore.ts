@@ -34,12 +34,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const applySession = async (session: Session | null) => {
       if (session?.user) {
         try {
-          const profile = await fetchMyProfile(session.user.id)
+          let profile = await fetchMyProfile(session.user.id)
+          // 클럽 컨텍스트 역할 유지 (순환 import 회피: 동적 import)
+          const { useClubStore } = await import('./clubStore')
+          const membership = useClubStore.getState().membership
+          if (profile && membership?.status === 'active') {
+            profile = { ...profile, role: membership.role }
+          }
           set({ session, profile, initialized: true })
         } catch {
           set({ session, profile: null, initialized: true })
         }
       } else {
+        const { useClubStore } = await import('./clubStore')
+        useClubStore.getState().clearClub()
         set({ session: null, profile: null, initialized: true })
       }
     }
@@ -60,7 +68,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshProfile: async () => {
     const { session } = get()
     if (!session?.user) return
-    const profile = await fetchMyProfile(session.user.id)
+    let profile = await fetchMyProfile(session.user.id)
+    const { useClubStore } = await import('./clubStore')
+    const membership = useClubStore.getState().membership
+    if (profile && membership?.status === 'active') {
+      profile = { ...profile, role: membership.role }
+    }
     set({ profile })
   },
 }))

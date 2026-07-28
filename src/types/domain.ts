@@ -32,18 +32,44 @@ export interface Profile {
   id: string
   name: string
   award_level: AwardLevel
+  /** 현재 클럽 컨텍스트의 역할(클럽 진입 시 club_members.role로 덮어씀) */
   role: UserRole
   is_active: boolean
   /** true면 비밀번호 미설정 게스트 (회원가입 시 실계정으로 연동 가능) */
   is_guest: boolean
   /** 소속 (게스트 수기 등록 시 입력, 일반 회원은 보통 null) */
   affiliation: string | null
+  /** 플랫폼 슈퍼 관리자 */
+  is_platform_admin: boolean
   created_at: string
   updated_at: string
 }
 
+export interface Club {
+  id: string
+  name: string
+  slug: string
+  youtube_enabled: boolean
+  absence_enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type ClubMemberStatus = 'pending' | 'active' | 'rejected'
+
+export interface ClubMembership {
+  club_id: string
+  name: string
+  slug: string
+  role: UserRole
+  status: ClubMemberStatus
+  youtube_enabled: boolean
+  absence_enabled: boolean
+}
+
 export interface Match {
   id: string
+  club_id: string
   match_date: string
   created_by: string
   status: MatchStatus

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { AWARD_LEVEL_OPTIONS } from '../../constants/labels'
 import { signUpWithEmail } from '../../services/authService'
 import type { AwardLevel } from '../../types/domain'
@@ -7,6 +7,10 @@ import { toErrorMessage } from '../../utils/errors'
 import { AuthCard, authButtonClass, authInputClass } from './AuthCard'
 
 export function SignupPage() {
+  const { clubSlug: paramSlug } = useParams<{ clubSlug?: string }>()
+  const [searchParams] = useSearchParams()
+  const clubSlug = (paramSlug ?? searchParams.get('club') ?? '').trim().toLowerCase()
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -15,10 +19,16 @@ export function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [needsConfirm, setNeedsConfirm] = useState(false)
 
+  const loginTo = clubSlug ? `/login?club=${encodeURIComponent(clubSlug)}` : '/login'
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
 
+    if (!clubSlug) {
+      setError('클럽 정보가 없습니다. 가입 링크(#/c/{슬러그}/signup 또는 ?club=슬러그)로 들어와 주세요.')
+      return
+    }
     if (name.trim().length < 1) {
       setError('이름을 입력해주세요.')
       return
@@ -30,9 +40,14 @@ export function SignupPage() {
 
     setLoading(true)
     try {
-      const { needsEmailConfirm } = await signUpWithEmail(email, password, name.trim(), awardLevel)
+      const { needsEmailConfirm } = await signUpWithEmail(
+        email,
+        password,
+        name.trim(),
+        awardLevel,
+        clubSlug,
+      )
       if (needsEmailConfirm) setNeedsConfirm(true)
-      // 이메일 인증이 꺼져 있으면 바로 세션이 생성되어 메인으로 이동한다
     } catch (err) {
       setError(toErrorMessage(err))
     } finally {
@@ -49,7 +64,7 @@ export function SignupPage() {
           메일의 링크를 눌러 가입을 완료한 뒤 로그인해주세요.
         </p>
         <Link
-          to="/login"
+          to={loginTo}
           className="mt-5 flex h-12 items-center justify-center rounded-xl bg-green-700 font-bold text-white"
         >
           로그인 화면으로
@@ -60,6 +75,16 @@ export function SignupPage() {
 
   return (
     <AuthCard title="회원가입">
+      {clubSlug ? (
+        <p className="mb-3 rounded-xl bg-green-50 px-3 py-2 text-center text-sm text-green-800">
+          클럽 <strong>#{clubSlug}</strong> 에 가입합니다.
+        </p>
+      ) : (
+        <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-sm text-amber-800">
+          클럽 슬러그가 필요합니다. 예: #/c/morning-star/signup
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium text-gray-600">이메일</span>
@@ -121,14 +146,14 @@ export function SignupPage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <button type="submit" disabled={loading} className={authButtonClass}>
+        <button type="submit" disabled={loading || !clubSlug} className={authButtonClass}>
           {loading ? '가입 중...' : '회원가입'}
         </button>
       </form>
 
       <div className="mt-4 text-center text-sm">
         <span className="text-gray-500">이미 계정이 있으신가요? </span>
-        <Link to="/login" className="font-semibold text-green-700 underline">
+        <Link to={loginTo} className="font-semibold text-green-700 underline">
           로그인
         </Link>
       </div>

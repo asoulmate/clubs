@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AWARD_LEVEL_LABELS } from '../../constants/labels'
 import { createMatch, fetchInProgressUserIds } from '../../services/matchService'
 import { useAuthStore } from '../../stores/authStore'
+import { useClubStore } from '../../stores/clubStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { PlayerPosition, Profile } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
@@ -23,13 +24,10 @@ const SLOT_INFO: { position: SelectablePosition; label: string }[] = [
   { position: 'B2', label: 'B팀 2번' },
 ]
 
-/**
- * 신규 경기 생성 다이얼로그
- *  - 생성자는 자동으로 A팀 1번으로 등록됨
- *  - 경기 중(in_progress)인 선수는 검색에서 제외 (최종 검증은 DB)
- */
+/** 신규 경기 생성 다이얼로그 */
 export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialogProps) {
   const profile = useAuthStore((s) => s.profile)
+  const clubId = useClubStore((s) => s.club?.id)
   const showToast = useToastStore((s) => s.show)
   const [selected, setSelected] = useState<Partial<Record<SelectablePosition, Profile>>>({})
   const [picking, setPicking] = useState<SelectablePosition | null>(null)
@@ -37,10 +35,11 @@ export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialo
   const [inProgressIds, setInProgressIds] = useState<string[]>([])
 
   useEffect(() => {
-    void fetchInProgressUserIds()
+    if (!clubId) return
+    void fetchInProgressUserIds(clubId)
       .then(setInProgressIds)
       .catch(() => setInProgressIds([]))
-  }, [])
+  }, [clubId])
 
   const excludeIds = [
     profile?.id ?? '',
@@ -49,9 +48,19 @@ export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialo
   ]
 
   const handleCreate = async () => {
+    if (!clubId) {
+      showToast('클럽 정보가 없습니다.', 'error')
+      return
+    }
     setSaving(true)
     try {
-      await createMatch(date, selected.A2?.id ?? null, selected.B1?.id ?? null, selected.B2?.id ?? null)
+      await createMatch(
+        date,
+        clubId,
+        selected.A2?.id ?? null,
+        selected.B1?.id ?? null,
+        selected.B2?.id ?? null,
+      )
       showToast('경기가 생성되었습니다.', 'success')
       onCreated()
       onClose()

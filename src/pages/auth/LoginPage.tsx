@@ -1,10 +1,14 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { signInWithEmail } from '../../services/authService'
 import { toErrorMessage } from '../../utils/errors'
 import { AuthCard, authButtonClass, authInputClass } from './AuthCard'
 
 export function LoginPage() {
+  const [searchParams] = useSearchParams()
+  const clubSlug = (searchParams.get('club') ?? '').trim().toLowerCase()
+  const signupTo = clubSlug ? `/c/${clubSlug}/signup` : '/signup'
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -15,7 +19,6 @@ export function LoginPage() {
     setError(null)
     setLoading(true)
     try {
-      // 로그인 성공 시 onAuthStateChange가 세션을 반영하고 라우터가 메인으로 이동시킨다
       await signInWithEmail(email, password)
     } catch (err) {
       setError(toErrorMessage(err))
@@ -63,7 +66,7 @@ export function LoginPage() {
         <Link to="/reset-password" className="text-gray-500 underline">
           비밀번호를 잊으셨나요?
         </Link>
-        <Link to="/signup" className="font-semibold text-green-700 underline">
+        <Link to={signupTo} className="font-semibold text-green-700 underline">
           회원가입
         </Link>
       </div>

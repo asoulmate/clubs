@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { AWARD_LEVEL_ICONS, AWARD_LEVEL_LABELS } from '../../constants/labels'
 import { fetchProfileById } from '../../services/profileService'
 import { fetchPlayerSummary } from '../../services/statsService'
+import { useClubStore } from '../../stores/clubStore'
 import { usePlayerSummaryStore } from '../../stores/playerSummaryStore'
 import type { PlayerStatsRow, Profile } from '../../types/domain'
 import { calcWinRate } from '../../utils/ranking'
@@ -10,20 +11,20 @@ import { ALL_TIME_RANGE } from '../../utils/period'
 import { Dialog } from '../common/Dialog'
 import { Spinner } from '../common/Spinner'
 
-/**
- * 선수 이름 클릭 시 표시되는 누적 요약
- *  - PC: 중앙 모달 / 모바일: 하단 시트 (Dialog가 자동 분기)
- *  - '상세 기록 보기' → 개인 상세 페이지 이동
- */
+/** 선수 이름 클릭 시 표시되는 누적 요약 */
 export function PlayerSummaryDialog() {
   const { userId, close } = usePlayerSummaryStore()
   const navigate = useNavigate()
+  const { clubSlug: paramSlug } = useParams<{ clubSlug?: string }>()
+  const club = useClubStore((s) => s.club)
+  const clubId = club?.id
+  const slug = club?.slug ?? paramSlug
   const [profile, setProfile] = useState<Profile | null>(null)
   const [stats, setStats] = useState<PlayerStatsRow | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId || !clubId) return
     let stale = false
     setLoading(true)
     setProfile(null)
@@ -31,7 +32,7 @@ export function PlayerSummaryDialog() {
 
     void Promise.all([
       fetchProfileById(userId),
-      fetchPlayerSummary(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to),
+      fetchPlayerSummary(userId, ALL_TIME_RANGE.from, ALL_TIME_RANGE.to, clubId),
     ])
       .then(([p, s]) => {
         if (stale) return
@@ -45,7 +46,7 @@ export function PlayerSummaryDialog() {
     return () => {
       stale = true
     }
-  }, [userId])
+  }, [userId, clubId])
 
   if (!userId) return null
 
@@ -105,7 +106,7 @@ export function PlayerSummaryDialog() {
             type="button"
             onClick={() => {
               close()
-              navigate(`/players/${profile.id}`)
+              navigate(slug ? `/c/${slug}/players/${profile.id}` : `/players/${profile.id}`)
             }}
             className="h-12 rounded-xl bg-green-700 font-bold text-white active:bg-green-800"
           >

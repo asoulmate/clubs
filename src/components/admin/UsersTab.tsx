@@ -5,9 +5,16 @@ import {
   adminRemoveUser,
   adminResetUserPassword,
   adminUpdateUser,
-  fetchAllUsers,
+  fetchClubUsers,
+  type ClubUserRow,
 } from '../../services/adminService'
+import {
+  approveClubMember,
+  setClubMemberRole,
+  updateClubFeatureFlags,
+} from '../../services/clubService'
 import { useAuthStore } from '../../stores/authStore'
+import { useClubStore } from '../../stores/clubStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { AwardLevel, Profile, UserRole } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
@@ -132,38 +139,53 @@ function AdminEditUserDialog({
   )
 }
 
-/** 관리자 - 사용자 관리 탭 */
+/** 관리자 - 사용자 관리 탭 (클럽 멤버) */
 export function UsersTab() {
   const myProfile = useAuthStore((s) => s.profile)
+  const club = useClubStore((s) => s.club)
+  const enterClubBySlug = useClubStore((s) => s.enterClubBySlug)
   const showToast = useToastStore((s) => s.show)
   const [search, setSearch] = useState('')
-  const [users, setUsers] = useState<Profile[]>([])
+  const [users, setUsers] = useState<ClubUserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Profile | null>(null)
+  const [flagSaving, setFlagSaving] = useState(false)
   const debouncedSearch = useDebounce(search, 300)
 
   const canChangeRole = isAdmin(myProfile)
   const canEditProfile = isAdmin(myProfile)
   const canRemoveUser = isAdminOrSub(myProfile)
+  const canApprove = isAdminOrSub(myProfile)
 
   const load = useCallback(async () => {
+    if (!club?.id) {
+      setUsers([])
+      setLoading(false)
+      return
+    }
     try {
-      setUsers(await fetchAllUsers(debouncedSearch))
+      setUsers(await fetchClubUsers(club.id, debouncedSearch))
     } catch (err) {
       showToast(toErrorMessage(err), 'error')
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch, showToast])
+  }, [club?.id, debouncedSearch, showToast])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  const changeRole = async (user: Profile, role: UserRole) => {
-    if (!window.confirm(`${user.name} 님의 권한을 '${ROLE_LABELS[role]}'(으)로 변경할까요?`)) return
+  const changeRole = async (row: ClubUserRow, role: UserRole) => {
+    if (!club) return
+    if (
+      !window.confirm(
+        `${row.profile.name} 님의 클럽 권한을 '${ROLE_LABELS[role]}'(으)로 변경할까요?`,
+      )
+    )
+      return
     try {
-      await adminUpdateUser(user.id, { role })
+      await setClubMemberRole(club.id, row.user_id, role)
       showToast('권한이 변경되었습니다.', 'success')
       void load()
     } catch (err) {
@@ -171,7 +193,23 @@ export function UsersTab() {
     }
   }
 
-  const toggleActive = async (user: Profile) => {
+  const approveMember = async (row: ClubUserRow, approve: boolean) => {
+    if (!club) return
+    const msg = approve
+      ? `${row.profile.name} 님의 클럽 가입을 승인할까요?`
+      : `${row.profile.name} 님의 가입을 거절할까요?`
+    if (!window.confirm(msg)) return
+    try {
+      await approveClubMember(club.id, row.user_id, approve)
+      showToast(approve ? '승인되었습니다.' : '거절되었습니다.', 'success')
+      void load()
+    } catch (err) {
+      showToast(toErrorMessage(err), 'error')
+    }
+  }
+
+  const toggleActive = async (row: ClubUserRow) => {
+    const user = row.profile
     const next = !user.is_active
     if (
       !window.confirm(
@@ -192,16 +230,18 @@ export function UsersTab() {
     }
   }
 
-  const canShowRemove = (user: Profile) => {
+  const canShowRemove = (row: ClubUserRow) => {
+    const user = row.profile
     if (!canRemoveUser || !myProfile) return false
     if (user.id === myProfile.id) return false
     if (user.is_guest) return true
-    if (user.role === 'admin') return false
-    if (user.role === 'sub_admin') return isAdmin(myProfile)
+    if (row.role === 'admin') return false
+    if (row.role === 'sub_admin') return isAdmin(myProfile)
     return true
   }
 
-  const removeUser = async (user: Profile) => {
+  const removeUser = async (row: ClubUserRow) => {
+    const user = row.profile
     const message = user.is_guest
       ? `${user.name} 님(게스트)을 삭제할까요?\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록이 있으면 삭제 대신 비활성화됩니다.`
       : `${user.name} 님을 탈퇴 처리할까요?\n· 로그인 계정이 삭제되며 재가입이 필요합니다.\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록은 통계용으로 남습니다.`
@@ -223,24 +263,68 @@ export function UsersTab() {
     }
   }
 
+  const toggleFeature = async (key: 'youtube_enabled' | 'absence_enabled', value: boolean) => {
+    if (!club || !isAdmin(myProfile)) return
+    setFlagSaving(true)
+    try {
+      await updateClubFeatureFlags(club.id, { [key]: value })
+      await enterClubBySlug(club.slug)
+      showToast('기능 설정이 저장되었습니다.', 'success')
+    } catch (err) {
+      showToast(toErrorMessage(err), 'error')
+    } finally {
+      setFlagSaving(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {club && isAdmin(myProfile) && (
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="flex items-center justify-between gap-3 border-b border-gray-50 px-4 py-3">
+            <div>
+              <p className="font-semibold">유튜브 연동</p>
+              <p className="text-xs text-gray-400">이 클럽에서 유튜브 매칭 UI 표시</p>
+            </div>
+            <select
+              value={club.youtube_enabled ? 'true' : 'false'}
+              disabled={flagSaving}
+              onChange={(e) => void toggleFeature('youtube_enabled', e.target.value === 'true')}
+              className="h-10 rounded-lg border border-gray-300 px-2 text-sm"
+            >
+              <option value="true">사용</option>
+              <option value="false">숨김</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div>
+              <p className="font-semibold">무단 결석</p>
+              <p className="text-xs text-gray-400">이 클럽에서 무단 결석 패널 표시</p>
+            </div>
+            <select
+              value={club.absence_enabled ? 'true' : 'false'}
+              disabled={flagSaving}
+              onChange={(e) => void toggleFeature('absence_enabled', e.target.value === 'true')}
+              className="h-10 rounded-lg border border-gray-300 px-2 text-sm"
+            >
+              <option value="true">사용</option>
+              <option value="false">숨김</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       <input
         type="search"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="이름으로 검색 (비활성 포함)"
+        placeholder="이름으로 검색 (승인 대기 포함)"
         className="h-12 w-full rounded-xl border border-gray-300 px-4 text-base focus:border-green-600 focus:outline-none"
       />
 
       {canEditProfile && (
         <p className="text-xs text-gray-500">
           메인 관리자는 회원 편집에서 이름·입상 변경 및 비밀번호 초기화(123456)가 가능합니다.
-        </p>
-      )}
-      {canRemoveUser && (
-        <p className="text-xs text-gray-500">
-          관리자/서브관리자는 게스트 삭제·회원 탈퇴를 할 수 있습니다. 확정 경기 기록은 보존됩니다.
         </p>
       )}
 
@@ -252,88 +336,119 @@ export function UsersTab() {
         <p className="py-10 text-center text-gray-500">검색 결과가 없습니다.</p>
       ) : (
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-          {users.map((user) => (
-            <div
-              key={user.id}
-              className={`flex flex-wrap items-center justify-between gap-2 border-b border-gray-50 px-4 py-3 last:border-b-0 ${
-                !user.is_active ? 'bg-gray-50 opacity-70' : ''
-              }`}
-            >
-              <div>
-                <p className="font-semibold">
-                  {user.name}
-                  {user.is_guest && (
-                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-                      게스트
-                    </span>
-                  )}
-                  {!user.is_active && !user.is_guest && (
-                    <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
-                      승인 대기/비활성
-                    </span>
-                  )}
-                  {!user.is_active && user.is_guest && (
-                    <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
-                      비활성
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {AWARD_LEVEL_LABELS[user.award_level]}
-                  {user.is_guest ? ' · 로그인 계정 없음' : ''}
-                  {user.is_guest && user.affiliation ? ` · ${user.affiliation}` : ''}
-                </p>
-              </div>
+          {users.map((row) => {
+            const user = row.profile
+            return (
+              <div
+                key={row.user_id}
+                className={`flex flex-wrap items-center justify-between gap-2 border-b border-gray-50 px-4 py-3 last:border-b-0 ${
+                  !user.is_active || row.status !== 'active' ? 'bg-gray-50 opacity-70' : ''
+                }`}
+              >
+                <div>
+                  <p className="font-semibold">
+                    {user.name}
+                    {user.is_guest && (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                        게스트
+                      </span>
+                    )}
+                    {row.status === 'pending' && (
+                      <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+                        가입 대기
+                      </span>
+                    )}
+                    {row.status === 'rejected' && (
+                      <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                        거절됨
+                      </span>
+                    )}
+                    {!user.is_active && (
+                      <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
+                        비활성
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {AWARD_LEVEL_LABELS[user.award_level]}
+                    {user.is_guest ? ' · 로그인 계정 없음' : ''}
+                    {user.is_guest && user.affiliation ? ` · ${user.affiliation}` : ''}
+                  </p>
+                </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {canEditProfile && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {canApprove && row.status === 'pending' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void approveMember(row, true)}
+                        className="h-10 rounded-lg bg-green-50 px-3 text-sm font-bold text-green-700"
+                      >
+                        승인
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void approveMember(row, false)}
+                        className="h-10 rounded-lg bg-red-50 px-3 text-sm font-bold text-red-600"
+                      >
+                        거절
+                      </button>
+                    </>
+                  )}
+
+                  {canEditProfile && (
+                    <button
+                      type="button"
+                      onClick={() => setEditing(user)}
+                      className="h-10 rounded-lg bg-gray-100 px-3 text-sm font-bold text-gray-700 active:bg-gray-200"
+                    >
+                      편집
+                    </button>
+                  )}
+
+                  <select
+                    value={row.role}
+                    disabled={
+                      !canChangeRole ||
+                      user.id === myProfile?.id ||
+                      user.is_guest ||
+                      row.status !== 'active'
+                    }
+                    onChange={(e) => void changeRole(row, e.target.value as UserRole)}
+                    aria-label={`${user.name} 권한`}
+                    className="h-10 rounded-lg border border-gray-300 px-2 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
+                      <option key={role} value={role}>
+                        {ROLE_LABELS[role]}
+                      </option>
+                    ))}
+                  </select>
+
                   <button
                     type="button"
-                    onClick={() => setEditing(user)}
-                    className="h-10 rounded-lg bg-gray-100 px-3 text-sm font-bold text-gray-700 active:bg-gray-200"
+                    disabled={user.id === myProfile?.id}
+                    onClick={() => void toggleActive(row)}
+                    className={`h-10 rounded-lg px-3 text-sm font-bold disabled:opacity-40 ${
+                      user.is_active ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
+                    }`}
                   >
-                    편집
+                    {user.is_active ? '비활성화' : user.is_guest ? '활성화' : '승인/활성화'}
                   </button>
-                )}
 
-                {/* 역할 변경은 admin만 가능 (자기 자신·게스트 제외) — 최종 검증은 DB가 수행 */}
-                <select
-                  value={user.role}
-                  disabled={!canChangeRole || user.id === myProfile?.id || user.is_guest}
-                  onChange={(e) => void changeRole(user, e.target.value as UserRole)}
-                  aria-label={`${user.name} 권한`}
-                  className="h-10 rounded-lg border border-gray-300 px-2 text-sm disabled:bg-gray-100 disabled:text-gray-400"
-                >
-                  {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
-                    <option key={role} value={role}>
-                      {ROLE_LABELS[role]}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  type="button"
-                  disabled={user.id === myProfile?.id}
-                  onClick={() => void toggleActive(user)}
-                  className={`h-10 rounded-lg px-3 text-sm font-bold disabled:opacity-40 ${
-                    user.is_active ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
-                  }`}
-                >
-                  {user.is_active ? '비활성화' : user.is_guest ? '활성화' : '승인/활성화'}
-                </button>
-
-                {canShowRemove(user) && (
-                  <button
-                    type="button"
-                    onClick={() => void removeUser(user)}
-                    className="h-10 rounded-lg bg-red-600 px-3 text-sm font-bold text-white active:bg-red-700"
-                  >
-                    {user.is_guest ? '삭제' : '탈퇴'}
-                  </button>
-                )}
+                  {canShowRemove(row) && (
+                    <button
+                      type="button"
+                      onClick={() => void removeUser(row)}
+                      className="h-10 rounded-lg bg-red-600 px-3 text-sm font-bold text-white active:bg-red-700"
+                    >
+                      {user.is_guest ? '삭제' : '탈퇴'}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

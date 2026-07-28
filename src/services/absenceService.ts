@@ -15,11 +15,12 @@ export interface AbsenceRow {
 }
 
 /** 특정 날짜의 무단 결석 목록 */
-export async function fetchAbsencesByDate(date: string): Promise<AbsenceRow[]> {
+export async function fetchAbsencesByDate(date: string, clubId: string): Promise<AbsenceRow[]> {
   const { data, error } = await supabase
     .from('unexcused_absences')
     .select('*, profile:profiles!unexcused_absences_user_id_fkey(*)')
     .eq('absence_date', date)
+    .eq('club_id', clubId)
     .order('created_at', { ascending: true })
 
   if (error) throw error
@@ -29,24 +30,35 @@ export async function fetchAbsencesByDate(date: string): Promise<AbsenceRow[]> {
       ...row.profile,
       is_guest: Boolean(row.profile?.is_guest),
       affiliation: row.profile?.affiliation?.trim() ? row.profile.affiliation.trim() : null,
+      is_platform_admin: Boolean(row.profile?.is_platform_admin),
     },
   }))
 }
 
 /** 무단 결석 등록 */
-export async function addUnexcusedAbsence(date: string, userId: string): Promise<void> {
+export async function addUnexcusedAbsence(
+  date: string,
+  userId: string,
+  clubId: string,
+): Promise<void> {
   const { error } = await supabase.rpc('add_unexcused_absence', {
     p_absence_date: date,
     p_user_id: userId,
+    p_club_id: clubId,
   })
   if (error) throw error
 }
 
 /** 무단 결석 삭제 */
-export async function removeUnexcusedAbsence(date: string, userId: string): Promise<void> {
+export async function removeUnexcusedAbsence(
+  date: string,
+  userId: string,
+  clubId: string,
+): Promise<void> {
   const { error } = await supabase.rpc('remove_unexcused_absence', {
     p_absence_date: date,
     p_user_id: userId,
+    p_club_id: clubId,
   })
   if (error) throw error
 }

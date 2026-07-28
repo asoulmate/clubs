@@ -3,6 +3,7 @@ import { POSITION_LABELS } from '../../constants/labels'
 import { adminSetPlayer } from '../../services/adminService'
 import { fetchInProgressUserIds, registerPlayer } from '../../services/matchService'
 import { useAuthStore } from '../../stores/authStore'
+import { useClubStore } from '../../stores/clubStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { MatchWithPlayers, PlayerPosition, Profile } from '../../types/domain'
@@ -21,16 +22,18 @@ interface RegisterSlotDialogProps {
 /** 빈 슬롯 참가자 등록: 본인 등록 + (설정 허용 시) 다른 회원/게스트 대리 등록 */
 export function RegisterSlotDialog({ match, position, onClose, onChanged }: RegisterSlotDialogProps) {
   const profile = useAuthStore((s) => s.profile)
+  const clubId = useClubStore((s) => s.club?.id)
   const settings = useSettingsStore((s) => s.settings)
   const showToast = useToastStore((s) => s.show)
   const [saving, setSaving] = useState(false)
   const [inProgressIds, setInProgressIds] = useState<string[]>([])
 
   useEffect(() => {
-    void fetchInProgressUserIds()
+    if (!clubId) return
+    void fetchInProgressUserIds(clubId)
       .then(setInProgressIds)
       .catch(() => setInProgressIds([]))
-  }, [])
+  }, [clubId])
 
   const alreadyInMatch = match.players.some((p) => p.user_id === profile?.id)
   const canProxy = settings.allow_proxy_registration || isAdminOrSub(profile)

@@ -6,6 +6,7 @@ import {
   adminUpdateScore,
 } from '../../services/adminService'
 import { cancelMatch, deleteMatch, fetchMatchesByDate } from '../../services/matchService'
+import { useClubStore } from '../../stores/clubStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { MatchWithPlayers, PlayerPosition } from '../../types/domain'
 import { ALL_POSITIONS } from '../../types/domain'
@@ -197,6 +198,7 @@ function AdminPlayersDialog({
 /** 관리자 - 경기 관리 탭 */
 export function MatchesTab() {
   const showToast = useToastStore((s) => s.show)
+  const clubId = useClubStore((s) => s.club?.id)
   const [date, setDate] = useState(() => todayKst())
   const [matches, setMatches] = useState<MatchWithPlayers[]>([])
   const [loading, setLoading] = useState(true)
@@ -204,15 +206,20 @@ export function MatchesTab() {
   const [playersTarget, setPlayersTarget] = useState<MatchWithPlayers | null>(null)
 
   const load = useCallback(async () => {
+    if (!clubId) {
+      setMatches([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
-      setMatches(await fetchMatchesByDate(date))
+      setMatches(await fetchMatchesByDate(date, clubId))
     } catch (err) {
       showToast(toErrorMessage(err), 'error')
     } finally {
       setLoading(false)
     }
-  }, [date, showToast])
+  }, [date, clubId, showToast])
 
   useEffect(() => {
     void load()

@@ -20,18 +20,19 @@ export async function signInWithEmail(email: string, password: string): Promise<
   if (error) throw error
 }
 
-/** 회원가입 (이름과 입상 구분은 메타데이터로 전달 → DB 트리거가 profiles 생성) */
+/** 회원가입 (이름·입상·클럽 슬러그는 메타데이터로 전달 → DB 트리거가 profiles/멤버십 생성) */
 export async function signUpWithEmail(
   email: string,
   password: string,
   name: string,
   awardLevel: AwardLevel,
+  clubSlug: string,
 ): Promise<{ needsEmailConfirm: boolean }> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { name, award_level: awardLevel },
+      data: { name, award_level: awardLevel, club_slug: clubSlug },
       emailRedirectTo: redirectUrl('/login'),
     },
   })

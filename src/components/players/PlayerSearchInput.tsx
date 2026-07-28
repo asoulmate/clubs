@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AWARD_LEVEL_LABELS, AWARD_LEVEL_OPTIONS } from '../../constants/labels'
 import { useDebounce } from '../../hooks/useDebounce'
 import { createGuestProfile, searchActiveProfiles } from '../../services/profileService'
+import { useClubStore } from '../../stores/clubStore'
 import type { AwardLevel, Profile } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 
@@ -38,13 +39,19 @@ export function PlayerSearchInput({
   const [guestAffiliation, setGuestAffiliation] = useState('')
   const [guestSaving, setGuestSaving] = useState(false)
   const [guestError, setGuestError] = useState<string | null>(null)
+  const clubId = useClubStore((s) => s.club?.id)
   const debouncedQuery = useDebounce(query, 300)
 
   useEffect(() => {
     let stale = false
+    if (!clubId) {
+      setResults([])
+      setSearching(false)
+      return
+    }
     setSearching(true)
 
-    void searchActiveProfiles(debouncedQuery)
+    void searchActiveProfiles(debouncedQuery, clubId)
       .then((profiles) => {
         if (!stale) setResults(profiles)
       })
@@ -58,7 +65,7 @@ export function PlayerSearchInput({
     return () => {
       stale = true
     }
-  }, [debouncedQuery])
+  }, [debouncedQuery, clubId])
 
   const visible = results.filter((p) => !excludeIds.includes(p.id))
 
@@ -80,9 +87,18 @@ export function PlayerSearchInput({
       setGuestError('소속을 입력해주세요.')
       return
     }
+    if (!clubId) {
+      setGuestError('클럽 정보가 없습니다.')
+      return
+    }
     setGuestSaving(true)
     try {
-      const guest = await createGuestProfile(guestName.trim(), guestAward, guestAffiliation.trim())
+      const guest = await createGuestProfile(
+        guestName.trim(),
+        guestAward,
+        guestAffiliation.trim(),
+        clubId,
+      )
       onSelect(guest)
       setGuestOpen(false)
       setQuery('')

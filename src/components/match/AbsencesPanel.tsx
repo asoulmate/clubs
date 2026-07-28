@@ -7,6 +7,7 @@ import {
   type AbsenceRow,
 } from '../../services/absenceService'
 import { useAuthStore } from '../../stores/authStore'
+import { useClubStore } from '../../stores/clubStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { Profile } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
@@ -18,12 +19,10 @@ interface AbsencesPanelProps {
   date: string
 }
 
-/**
- * 오늘의 경기 상단: 해당 날짜 무단 결석자 등록/표시
- * 강한 하이라이트(빨간 테두리·배경)로 눈에 띄게 표시
- */
+/** 오늘의 경기 상단: 해당 날짜 무단 결석자 등록/표시 */
 export function AbsencesPanel({ date }: AbsencesPanelProps) {
   const profile = useAuthStore((s) => s.profile)
+  const clubId = useClubStore((s) => s.club?.id)
   const showToast = useToastStore((s) => s.show)
   const [absences, setAbsences] = useState<AbsenceRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,28 +30,37 @@ export function AbsencesPanel({ date }: AbsencesPanelProps) {
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
+    if (!clubId) {
+      setAbsences([])
+      setLoading(false)
+      return
+    }
     try {
-      setAbsences(await fetchAbsencesByDate(date))
+      setAbsences(await fetchAbsencesByDate(date, clubId))
     } catch {
-      // 상단 패널 실패는 토스트로만 알림
       showToast('무단 결석 목록을 불러오지 못했습니다.', 'error')
     } finally {
       setLoading(false)
     }
-  }, [date, showToast])
+  }, [date, clubId, showToast])
 
   useEffect(() => {
     setLoading(true)
     void load()
   }, [load])
 
-  // Realtime: 같은 날짜 결석 변경 반영
   useEffect(() => {
+    if (!clubId) return
     const channel = supabase
-      .channel(`absences-${date}`)
+      .channel(`absences-${clubId}-${date}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'unexcused_absences', filter: `absence_date=eq.${date}` },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'unexcused_absences',
+          filter: `absence_date=eq.${date}`,
+        },
         () => {
           void load()
         },
@@ -62,12 +70,13 @@ export function AbsencesPanel({ date }: AbsencesPanelProps) {
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [date, load])
+  }, [date, clubId, load])
 
   const handleAdd = async (selected: Profile) => {
+    if (!clubId) return
     setBusy(true)
     try {
-      await addUnexcusedAbsence(date, selected.id)
+      await addUnexcusedAbsence(date, selected.id, clubId)
       showToast(`${selected.name} 님을 무단 결석으로 등록했습니다.`, 'success')
       setAdding(false)
       await load()
@@ -79,10 +88,11 @@ export function AbsencesPanel({ date }: AbsencesPanelProps) {
   }
 
   const handleRemove = async (row: AbsenceRow) => {
+    if (!clubId) return
     if (!window.confirm(`${row.profile?.name ?? '해당 사용자'} 님의 무단 결석을 취소할까요?`)) return
     setBusy(true)
     try {
-      await removeUnexcusedAbsence(date, row.user_id)
+      await removeUnexcusedAbsence(date, row.user_id, clubId)
       showToast('무단 결석이 삭제되었습니다.', 'success')
       await load()
     } catch (err) {

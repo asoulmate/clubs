@@ -7,6 +7,7 @@ import {
   startMatch,
 } from '../../services/matchService'
 import { useAuthStore } from '../../stores/authStore'
+import { useClubStore } from '../../stores/clubStore'
 import { useToastStore } from '../../stores/toastStore'
 import type {
   MatchPlayer,
@@ -64,6 +65,7 @@ const STATUS_CARD_STYLES: Record<MatchStatus, string> = {
  */
 export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProps) {
   const profile = useAuthStore((s) => s.profile)
+  const youtubeEnabled = useClubStore((s) => s.club?.youtube_enabled ?? false)
   const showToast = useToastStore((s) => s.show)
   const [registerPosition, setRegisterPosition] = useState<PlayerPosition | null>(null)
   const [scoreOpen, setScoreOpen] = useState(false)
@@ -301,7 +303,7 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
       )}
 
       {/* 유튜브 */}
-      {!isCanceled && (
+      {!isCanceled && youtubeEnabled && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {match.youtube_video_id ? (
             <a

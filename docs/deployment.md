@@ -20,15 +20,20 @@ SQL Editor에서 순서대로 실행:
 12. `supabase/migrations/14_updates.sql` (참가율: 경기 등록일 기준)
 13. `supabase/migrations/15_updates.sql` (게스트 소속)
 14. `supabase/migrations/16_updates.sql` (게스트 삭제·회원 탈퇴)
+15. `supabase/migrations/17_multi_club.sql` (멀티 클럽: clubs / club_members / club_settings)
 
 ### 1-2. 최초 관리자 지정
 
-첫 계정 가입 후 SQL Editor에서:
+첫 계정 가입 후 SQL Editor에서 플랫폼 슈퍼관리자를 지정합니다.
+(`17_multi_club.sql` 이관 시 기존 `role='admin'` 은 자동으로 `is_platform_admin=true` 로 승격됩니다.)
 
 ```sql
-update public.profiles set role = 'admin'
+update public.profiles set is_platform_admin = true
 where id = (select id from auth.users where email = '관리자이메일@example.com');
 ```
+
+클럽 내 역할(admin / sub_admin / user)은 `club_members.role` 로 관리합니다.
+플랫폼 관리 화면(`/platform`)에서 클럽을 생성한 뒤, 각 클럽 URL `#/c/{slug}` 로 진입합니다.
 
 ### 1-3. Auth URL 설정
 
@@ -36,14 +41,15 @@ where id = (select id from auth.users where email = '관리자이메일@example.
 
 ```text
 Site URL:
-https://사용자명.github.io/저장소명/
+https://asoulmate.github.io/clubs/
 
 Redirect URLs:
-https://사용자명.github.io/저장소명/**
+https://asoulmate.github.io/clubs/**
 http://localhost:5173/**        (로컬 개발용)
 ```
 
-HashRouter를 사용하므로 이메일 인증·비밀번호 재설정 링크가 `.../저장소명/#/update-password` 형태로 리다이렉트된다.
+HashRouter를 사용하므로 이메일 인증·비밀번호 재설정 링크가 `.../clubs/#/update-password` 형태로 리다이렉트된다.
+클럽 앱 경로는 `#/c/{slug}/...` 형태이다. (예: `#/c/morning-star`)
 
 ### 1-4. 이메일 인증 (선택)
 
@@ -69,10 +75,10 @@ HashRouter를 사용하므로 이메일 인증·비밀번호 재설정 링크가
 `main` 브랜치에 push하면 `.github/workflows/deploy.yml`이 자동으로:
 
 1. 의존성 설치 (`npm ci`)
-2. TypeScript 검사 + 빌드 (`npm run build`) — 이때 `VITE_BASE_PATH=/저장소명/`이 저장소 이름으로 자동 주입됨
+2. TypeScript 검사 + 빌드 (`npm run build`) — 이때 `VITE_BASE_PATH=/clubs/`가 저장소 이름으로 자동 주입됨
 3. `dist`를 GitHub Pages에 배포
 
-배포 주소: `https://사용자명.github.io/저장소명/`
+배포 주소: `https://asoulmate.github.io/clubs/`
 
 ## 4. 로컬 개발
 

@@ -167,13 +167,14 @@ export async function linkMatchYoutubeByUrl(
 export async function autoLinkYoutubeAroundDate(
   centerDate: string,
   channelHandle: string,
+  clubId: string,
   windowDays: number = YOUTUBE_MATCH_WINDOW_DAYS,
 ): Promise<{ linked: number; scannedMatches: number; scannedVideos: number }> {
   const fromDate = addDaysToDateString(centerDate, -windowDays)
   const toDate = addDaysToDateString(centerDate, windowDays)
 
   const [matches, videos] = await Promise.all([
-    fetchMatchesByDateRange(fromDate, toDate),
+    fetchMatchesByDateRange(fromDate, toDate, clubId),
     fetchChannelRecentVideos(channelHandle, { fromDate, toDate }),
   ])
 

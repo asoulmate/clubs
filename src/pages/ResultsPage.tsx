@@ -3,6 +3,7 @@ import { DateNavigator } from '../components/common/DateNavigator'
 import { Spinner } from '../components/common/Spinner'
 import { RankingTable } from '../components/stats/RankingTable'
 import { fetchPlayerStats } from '../services/statsService'
+import { useClubStore } from '../stores/clubStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import type { PlayerStatsRow } from '../types/domain'
 import { addDaysToDateString, todayKst } from '../utils/kst'
@@ -11,14 +12,12 @@ import { buildRanking } from '../utils/ranking'
 
 /**
  * 결과 집계 페이지
- *  - 일간/주간/월간/연간/누적 + 사용자 지정 기간 선택
- *  - 확정된 경기만 집계에 포함 (DB의 get_player_stats가 보장)
  */
 export function ResultsPage() {
   const settings = useSettingsStore((s) => s.settings)
+  const clubId = useClubStore((s) => s.club?.id)
   const [period, setPeriod] = useState<PeriodType>('daily')
   const [anchorDate, setAnchorDate] = useState(() => todayKst())
-  // 기간 지정용 시작일/종료일 (기본: 최근 1주일)
   const [customFrom, setCustomFrom] = useState(() => addDaysToDateString(todayKst(), -7))
   const [customTo, setCustomTo] = useState(() => todayKst())
   const [rows, setRows] = useState<PlayerStatsRow[]>([])
@@ -31,11 +30,16 @@ export function ResultsPage() {
   )
 
   useEffect(() => {
+    if (!clubId) {
+      setRows([])
+      setLoading(false)
+      return
+    }
     let stale = false
     setLoading(true)
     setError(null)
 
-    void fetchPlayerStats(range.from, range.to)
+    void fetchPlayerStats(range.from, range.to, clubId)
       .then((data) => {
         if (!stale) setRows(data)
       })
@@ -49,7 +53,7 @@ export function ResultsPage() {
     return () => {
       stale = true
     }
-  }, [range.from, range.to])
+  }, [range.from, range.to, clubId])
 
   const ranked = useMemo(
     () => buildRanking(rows, settings.min_matches_for_ranking),

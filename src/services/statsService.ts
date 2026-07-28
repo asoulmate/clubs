@@ -13,8 +13,16 @@ import type {
 // ============================================================
 
 /** 기간별 전체 사용자 집계 (확정 경기만 포함) */
-export async function fetchPlayerStats(from: string, to: string): Promise<PlayerStatsRow[]> {
-  const { data, error } = await supabase.rpc('get_player_stats', { p_from: from, p_to: to })
+export async function fetchPlayerStats(
+  from: string,
+  to: string,
+  clubId: string,
+): Promise<PlayerStatsRow[]> {
+  const { data, error } = await supabase.rpc('get_player_stats', {
+    p_from: from,
+    p_to: to,
+    p_club_id: clubId,
+  })
   if (error) throw error
   return ((data ?? []) as PlayerStatsRow[]).map((row) => ({
     ...row,
@@ -28,8 +36,9 @@ export async function fetchPlayerSummary(
   userId: string,
   from: string,
   to: string,
+  clubId: string,
 ): Promise<PlayerStatsRow | null> {
-  const rows = await fetchPlayerStats(from, to)
+  const rows = await fetchPlayerStats(from, to, clubId)
   return rows.find((r) => r.user_id === userId) ?? null
 }
 
@@ -38,11 +47,13 @@ export async function fetchPartnerStats(
   userId: string,
   from: string,
   to: string,
+  clubId: string,
 ): Promise<PartnerStatsRow[]> {
   const { data, error } = await supabase.rpc('get_partner_stats', {
     p_user_id: userId,
     p_from: from,
     p_to: to,
+    p_club_id: clubId,
   })
   if (error) throw error
   return (data ?? []) as PartnerStatsRow[]
@@ -53,31 +64,43 @@ export async function fetchOpponentStats(
   userId: string,
   from: string,
   to: string,
+  clubId: string,
 ): Promise<OpponentStatsRow[]> {
   const { data, error } = await supabase.rpc('get_opponent_stats', {
     p_user_id: userId,
     p_from: from,
     p_to: to,
+    p_club_id: clubId,
   })
   if (error) throw error
   return (data ?? []) as OpponentStatsRow[]
 }
 
 /** 월별 경기 추이 */
-export async function fetchMonthlyTrend(userId: string, months = 12): Promise<MonthlyTrendRow[]> {
+export async function fetchMonthlyTrend(
+  userId: string,
+  clubId: string,
+  months = 12,
+): Promise<MonthlyTrendRow[]> {
   const { data, error } = await supabase.rpc('get_player_monthly_trend', {
     p_user_id: userId,
     p_months: months,
+    p_club_id: clubId,
   })
   if (error) throw error
   return (data ?? []) as MonthlyTrendRow[]
 }
 
 /** 최근 경기 목록 */
-export async function fetchRecentMatches(userId: string, limit = 10): Promise<RecentMatchRow[]> {
+export async function fetchRecentMatches(
+  userId: string,
+  clubId: string,
+  limit = 10,
+): Promise<RecentMatchRow[]> {
   const { data, error } = await supabase.rpc('get_player_recent_matches', {
     p_user_id: userId,
     p_limit: limit,
+    p_club_id: clubId,
   })
   if (error) throw error
   return ((data ?? []) as RecentMatchRow[]).map((row) => ({

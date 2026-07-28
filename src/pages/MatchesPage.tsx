@@ -11,6 +11,7 @@ import {
   YOUTUBE_MATCH_WINDOW_DAYS,
 } from '../services/youtubeService'
 import { useAuthStore } from '../stores/authStore'
+import { useClubStore } from '../stores/clubStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useToastStore } from '../stores/toastStore'
 import { toErrorMessage } from '../utils/errors'
@@ -18,13 +19,12 @@ import { todayKst } from '../utils/kst'
 
 /**
  * 오늘의 경기 페이지 (메인)
- *  - 상단: 해당 날짜 무단 결석자 등록
- *  - Realtime으로 경기·결석 변경이 실시간 반영됨
- *  - 유튜브 매칭은 수동 버튼으로만 실행 (±2일 영상·경기 비교)
  */
 export function MatchesPage() {
   const [date, setDate] = useState(() => todayKst())
-  const { matches, loading, error, refresh } = useMatchesByDate(date)
+  const club = useClubStore((s) => s.club)
+  const clubId = club?.id
+  const { matches, loading, error, refresh } = useMatchesByDate(date, clubId)
   const [createOpen, setCreateOpen] = useState(false)
   const [syncingYoutube, setSyncingYoutube] = useState(false)
   const profile = useAuthStore((s) => s.profile)
@@ -36,6 +36,7 @@ export function MatchesPage() {
   ).length
 
   const runManualLink = async () => {
+    if (!clubId) return
     if (!settings.youtube_channel_handle) {
       showToast('관리자 설정에서 유튜브 채널 핸들을 먼저 등록해주세요.', 'error')
       return
@@ -49,6 +50,7 @@ export function MatchesPage() {
       const { linked, scannedMatches, scannedVideos } = await autoLinkYoutubeAroundDate(
         date,
         settings.youtube_channel_handle,
+        clubId,
         YOUTUBE_MATCH_WINDOW_DAYS,
       )
       if (linked > 0) {
@@ -74,9 +76,9 @@ export function MatchesPage() {
     <div className="flex flex-col gap-4">
       <DateNavigator date={date} onChange={setDate} />
 
-      <AbsencesPanel date={date} />
+      {club?.absence_enabled && <AbsencesPanel date={date} />}
 
-      {profile && (
+      {profile && club?.youtube_enabled && (
         <button
           type="button"
           disabled={syncingYoutube || loading}

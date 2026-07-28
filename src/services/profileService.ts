@@ -6,12 +6,19 @@ import type { AwardLevel, Profile } from '../types/domain'
 // ============================================================
 
 /** DB 행 → Profile (구스키마 누락 대비) */
-function toProfile(row: Profile & { is_guest?: boolean | null; affiliation?: string | null }): Profile {
+function toProfile(
+  row: Profile & {
+    is_guest?: boolean | null
+    affiliation?: string | null
+    is_platform_admin?: boolean | null
+  },
+): Profile {
   const aff = row.affiliation?.trim()
   return {
     ...row,
     is_guest: Boolean(row.is_guest),
     affiliation: aff ? aff : null,
+    is_platform_admin: Boolean(row.is_platform_admin),
   }
 }
 
@@ -40,25 +47,36 @@ export async function fetchProfileById(userId: string): Promise<Profile | null> 
 }
 
 /**
- * 이름 부분 검색 (자동완성용)
- * 비활성 사용자는 기본적으로 검색 결과에서 제외한다. (게스트 포함)
+ * 클럽 활성 멤버 이름 부분 검색 (자동완성용)
+ * club_members → profiles 조인 후 클라이언트에서 이름 필터
  */
-export async function searchActiveProfiles(query: string, limit = 20): Promise<Profile[]> {
-  let builder = supabase
-    .from('profiles')
-    .select('*')
-    .eq('is_active', true)
-    .order('name', { ascending: true })
-    .limit(limit)
+export async function searchActiveProfiles(
+  query: string,
+  clubId: string,
+  limit = 20,
+): Promise<Profile[]> {
+  const { data, error } = await supabase
+    .from('club_members')
+    .select('profile:profiles(*)')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+    .limit(200)
 
-  const trimmed = query.trim()
-  if (trimmed.length > 0) {
-    builder = builder.ilike('name', `%${trimmed}%`)
-  }
-
-  const { data, error } = await builder
   if (error) throw error
-  return (data ?? []).map(toProfile)
+
+  const trimmed = query.trim().toLowerCase()
+  const profiles = (data ?? [])
+    .map((row) => {
+      const profile = (row as { profile: Profile | Profile[] | null }).profile
+      const p = Array.isArray(profile) ? profile[0] : profile
+      return p ? toProfile(p) : null
+    })
+    .filter((p): p is Profile => p !== null && p.is_active)
+    .filter((p) => (trimmed.length > 0 ? p.name.toLowerCase().includes(trimmed) : true))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+    .slice(0, limit)
+
+  return profiles
 }
 
 /**
@@ -69,9 +87,11 @@ export async function createGuestProfile(
   name: string,
   awardLevel: AwardLevel,
   affiliation: string,
+  clubId: string,
 ): Promise<Profile> {
   const { data, error } = await supabase.rpc('create_guest_profile', {
     p_name: name.trim(),
+    p_club_id: clubId,
     p_award_level: awardLevel,
     p_affiliation: affiliation.trim(),
   })

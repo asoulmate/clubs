@@ -1,12 +1,58 @@
 import { supabase } from '../lib/supabase'
-import type { AwardLevel, MatchAuditLog, PlayerPosition, Profile, UserRole } from '../types/domain'
+import { fetchClubMembers } from './clubService'
+import type {
+  AwardLevel,
+  ClubMemberStatus,
+  MatchAuditLog,
+  PlayerPosition,
+  Profile,
+  UserRole,
+} from '../types/domain'
 
 // ============================================================
 // 관리자 기능 데이터 접근 계층
 // 최종 권한 검증은 전부 DB(RPC + 트리거)에서 수행한다.
 // ============================================================
 
-/** 전체 사용자 목록 (비활성·게스트 포함, 이름 검색 지원) */
+export interface ClubUserRow {
+  user_id: string
+  role: UserRole
+  status: ClubMemberStatus
+  profile: Profile
+}
+
+/** 클럽 멤버 목록 (pending 포함, 이름 검색 지원) */
+export async function fetchClubUsers(clubId: string, search = ''): Promise<ClubUserRow[]> {
+  const members = await fetchClubMembers(clubId)
+  const trimmed = search.trim().toLowerCase()
+
+  return members
+    .map((row) => {
+      const raw = (row as { profile: Profile | Profile[] | null }).profile
+      const profile = Array.isArray(raw) ? raw[0] : raw
+      if (!profile) return null
+      return {
+        user_id: (row as { user_id: string }).user_id,
+        role: (row as { role: UserRole }).role,
+        status: (row as { status: ClubMemberStatus }).status,
+        profile: {
+          ...profile,
+          is_guest: Boolean(profile.is_guest),
+          affiliation: profile.affiliation?.trim() ? profile.affiliation.trim() : null,
+          is_platform_admin: Boolean(profile.is_platform_admin),
+          // 클럽 컨텍스트 역할로 표시
+          role: (row as { role: UserRole }).role,
+        },
+      } satisfies ClubUserRow
+    })
+    .filter((row): row is ClubUserRow => Boolean(row))
+    .filter((row) =>
+      trimmed.length > 0 ? row.profile.name.toLowerCase().includes(trimmed) : true,
+    )
+    .sort((a, b) => a.profile.name.localeCompare(b.profile.name, 'ko'))
+}
+
+/** @deprecated 클럽 단위에서는 fetchClubUsers 사용 */
 export async function fetchAllUsers(search = ''): Promise<Profile[]> {
   let builder = supabase.from('profiles').select('*').order('name', { ascending: true })
 
@@ -21,10 +67,11 @@ export async function fetchAllUsers(search = ''): Promise<Profile[]> {
     ...row,
     is_guest: Boolean(row.is_guest),
     affiliation: row.affiliation?.trim() ? row.affiliation.trim() : null,
+    is_platform_admin: Boolean(row.is_platform_admin),
   }))
 }
 
-/** 사용자 역할/활성/이름/입상 변경 (이름·입상·역할은 admin만 — DB 검증) */
+/** 사용자 이름/입상/활성 변경 (역할은 setClubMemberRole 사용) */
 export async function adminUpdateUser(
   userId: string,
   updates: {
