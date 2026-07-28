@@ -51,7 +51,7 @@ export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialo
   const [selected, setSelected] = useState<Partial<Record<SelectablePosition, Profile>>>({})
   const [picking, setPicking] = useState<SelectablePosition | null>(null)
   const [isBetting, setIsBetting] = useState(false)
-  const [deadlineTime, setDeadlineTime] = useState('')
+  const [deadlineTime, setDeadlineTime] = useState(() => nowTimeKst())
   const [saving, setSaving] = useState(false)
   const [inProgressIds, setInProgressIds] = useState<string[]>([])
 
@@ -257,7 +257,12 @@ export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialo
               type="checkbox"
               checked={isBetting}
               disabled={saving}
-              onChange={(e) => setIsBetting(e.target.checked)}
+              onChange={(e) => {
+                const on = e.target.checked
+                setIsBetting(on)
+                // 체크 시마다 만든 시점의 현재 시각으로 기본값 갱신
+                if (on) setDeadlineTime(nowTimeKst())
+              }}
               className="h-6 w-6 shrink-0 accent-amber-600"
             />
           </label>

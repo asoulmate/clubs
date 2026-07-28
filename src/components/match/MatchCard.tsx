@@ -327,54 +327,63 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
         </p>
       )}
 
-      {/* 유튜브 */}
-      {!isCanceled && youtubeEnabled && (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {match.youtube_video_id ? (
-            <a
-              href={youtubeWatchUrl(match.youtube_video_id)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-red-600 px-3 text-sm font-bold text-white active:bg-red-700"
-            >
-              ▶ 영상 보기
-            </a>
-          ) : (
-            <span className="text-xs text-gray-400">영상 미연결</span>
-          )}
-          {profile && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setYoutubeOpen(true)}
-              className="h-10 rounded-xl border border-gray-300 px-3 text-sm font-semibold text-gray-700 active:bg-gray-50 disabled:opacity-50"
-            >
-              {match.youtube_video_id ? '유튜브 변경' : '유튜브 연결'}
-            </button>
-          )}
-        </div>
-      )}
+      {/* 유튜브 + 배팅 (한 줄: 왼쪽 유튜브, 오른쪽 마감·배팅) */}
+      {!isCanceled && (youtubeEnabled || match.is_betting) && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+            {youtubeEnabled && (
+              <>
+                {match.youtube_video_id ? (
+                  <a
+                    href={youtubeWatchUrl(match.youtube_video_id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 items-center gap-1 rounded-xl bg-red-600 px-2.5 text-xs font-bold text-white active:bg-red-700"
+                  >
+                    ▶ 영상
+                  </a>
+                ) : (
+                  <span className="text-[11px] text-gray-400">영상 미연결</span>
+                )}
+                {profile && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setYoutubeOpen(true)}
+                    className="h-9 rounded-xl border border-gray-300 px-2.5 text-xs font-semibold text-gray-700 active:bg-gray-50 disabled:opacity-50"
+                  >
+                    {match.youtube_video_id ? '유튜브 변경' : '유튜브 연결'}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
 
-      {/* 배팅 경기: 마감 카운트다운 + 배팅 다이얼로그 버튼 */}
-      {match.is_betting && !isCanceled && (
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          {match.betting_deadline ? (
-            <BettingCountdown
-              deadline={match.betting_deadline}
-              settled={match.status === 'confirmed'}
-            />
-          ) : (
-            <span className="text-xs text-gray-400">배팅 경기</span>
-          )}
-          {profile && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setBettingOpen(true)}
-              className="h-10 rounded-xl border border-amber-400 bg-amber-50 px-3 text-sm font-bold text-amber-800 active:bg-amber-100 disabled:opacity-50"
-            >
-              💰 배팅 참여·현황
-            </button>
+          {match.is_betting && (
+            <div className="flex shrink-0 items-center gap-1.5">
+              {match.betting_deadline && (
+                <BettingCountdown
+                  deadline={match.betting_deadline}
+                  settled={
+                    match.status === 'confirmed' ||
+                    match.status === 'in_progress' ||
+                    match.status === 'submitted' ||
+                    match.team_a_score !== null
+                  }
+                  compact
+                />
+              )}
+              {profile && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setBettingOpen(true)}
+                  className="h-9 rounded-xl border border-amber-400 bg-amber-50 px-2.5 text-xs font-bold text-amber-800 active:bg-amber-100 disabled:opacity-50"
+                >
+                  💰 배팅
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
