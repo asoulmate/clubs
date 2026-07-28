@@ -11,7 +11,7 @@ import type {
 export async function fetchMatchBets(matchId: string): Promise<MatchBet[]> {
   const { data, error } = await supabase
     .from('match_bets')
-    .select('*, profile:profiles!match_bets_user_id_fkey(id, name)')
+    .select('*, profile:profiles!match_bets_user_id_fkey(id, name, award_level)')
     .eq('match_id', matchId)
     .order('created_at', { ascending: true })
 

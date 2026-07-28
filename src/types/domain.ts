@@ -266,7 +266,7 @@ export interface MatchBet {
   settled_at: string | null
   created_at: string
   updated_at: string
-  profile?: Pick<Profile, 'id' | 'name'> | null
+  profile?: Pick<Profile, 'id' | 'name' | 'award_level'> | null
 }
 
 export interface PlayerBetStats {

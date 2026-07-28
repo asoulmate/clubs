@@ -12,6 +12,7 @@ import { toErrorMessage } from '../../utils/errors'
 import { winnerTeam } from '../../utils/score'
 import { Dialog } from '../common/Dialog'
 import { Spinner } from '../common/Spinner'
+import { PlayerNameButton } from '../players/PlayerNameButton'
 import { BettingCountdown } from './BettingCountdown'
 
 const BET_RESULT_LABELS = {
@@ -22,6 +23,13 @@ const BET_RESULT_LABELS = {
 
 function formatWon(n: number): string {
   return `${n.toLocaleString('ko-KR')}원`
+}
+
+/** 마감 전이라도 경기 시작·스코어 입력이면 배팅 잠금 */
+function isBettingLockedByMatch(match: MatchWithPlayers): boolean {
+  if (match.status === 'in_progress' || match.status === 'submitted') return true
+  if (match.status === 'confirmed' || match.status === 'canceled') return true
+  return match.team_a_score !== null || match.team_b_score !== null
 }
 
 interface MatchBettingDialogProps {
@@ -43,8 +51,9 @@ export function MatchBettingDialog({ match, onClose }: MatchBettingDialogProps) 
 
   const deadlineMs = match.betting_deadline ? new Date(match.betting_deadline).getTime() : null
   const deadlinePassed = deadlineMs !== null && !Number.isNaN(deadlineMs) && now >= deadlineMs
+  const matchLocked = isBettingLockedByMatch(match)
   const settled = match.status === 'confirmed' || match.status === 'canceled'
-  const locked = settled || deadlinePassed
+  const locked = settled || deadlinePassed || matchLocked
 
   const myBet = profile ? bets.find((b) => b.user_id === profile.id) : undefined
   const winner =
@@ -113,13 +122,27 @@ export function MatchBettingDialog({ match, onClose }: MatchBettingDialogProps) 
   const teamACount = bets.filter((b) => b.predicted_team === 'A').length
   const teamBCount = bets.filter((b) => b.predicted_team === 'B').length
 
+  const lockMessage = (() => {
+    if (settled) return null
+    if (matchLocked) {
+      return '경기가 시작되었거나 스코어가 입력되어 더 이상 배팅하거나 변경할 수 없습니다.'
+    }
+    if (deadlinePassed) {
+      return '배팅이 마감되어 더 이상 배팅하거나 변경할 수 없습니다.'
+    }
+    return null
+  })()
+
   return (
     <Dialog open onClose={onClose} title="승패 배팅">
       <div className="flex flex-col gap-3">
         {/* 마감 시간 안내 */}
         {match.betting_deadline && (
           <div className="flex justify-center">
-            <BettingCountdown deadline={match.betting_deadline} settled={settled} />
+            <BettingCountdown
+              deadline={match.betting_deadline}
+              settled={settled || matchLocked}
+            />
           </div>
         )}
 
@@ -188,9 +211,9 @@ export function MatchBettingDialog({ match, onClose }: MatchBettingDialogProps) 
               </div>
             )}
 
-            {locked && !settled && (
+            {lockMessage && (
               <p className="rounded-xl bg-gray-50 px-3 py-2 text-center text-sm text-gray-600">
-                배팅이 마감되어 더 이상 배팅하거나 변경할 수 없습니다.
+                {lockMessage}
               </p>
             )}
 
@@ -214,9 +237,16 @@ export function MatchBettingDialog({ match, onClose }: MatchBettingDialogProps) 
                     key={b.id}
                     className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2"
                   >
-                    <span className="truncate font-medium text-gray-900">
-                      {b.profile?.name ?? '회원'}
-                      {profile?.id === b.user_id ? ' (나)' : ''}
+                    <span className="flex min-w-0 items-center gap-1 truncate">
+                      <PlayerNameButton
+                        userId={b.user_id}
+                        name={b.profile?.name ?? '회원'}
+                        awardLevel={b.profile?.award_level}
+                        className="min-h-0 truncate px-0 py-0 text-sm"
+                      />
+                      {profile?.id === b.user_id ? (
+                        <span className="shrink-0 text-xs text-gray-400">(나)</span>
+                      ) : null}
                     </span>
                     <span className="shrink-0 tabular-nums text-gray-700">
                       {b.predicted_team}팀 · {formatWon(b.amount)}

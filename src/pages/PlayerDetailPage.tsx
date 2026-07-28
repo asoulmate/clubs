@@ -184,9 +184,18 @@ export function PlayerDetailPage() {
       {/* 배팅 기록 */}
       <section>
         <h2 className="mb-2 text-lg font-bold">배팅 기록</h2>
-        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
           <StatCard label="배팅 승(적중)" value={`${betStats?.bets_won ?? 0}`} />
           <StatCard label="배팅 패(미적중)" value={`${betStats?.bets_lost ?? 0}`} />
+          <StatCard
+            label="적중률"
+            value={(() => {
+              const won = betStats?.bets_won ?? 0
+              const lost = betStats?.bets_lost ?? 0
+              const decided = won + lost
+              return decided === 0 ? '-' : `${((won / decided) * 100).toFixed(0)}%`
+            })()}
+          />
           <StatCard
             label="적중 금액"
             value={`${(betStats?.amount_won ?? 0).toLocaleString('ko-KR')}원`}

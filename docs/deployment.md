@@ -27,6 +27,7 @@ SQL Editor에서 순서대로 실행:
 19. `supabase/migrations/21_updates.sql` (잘못 남은 플랫폼 슈퍼 플래그 정리 예시)
 20. `supabase/migrations/22_betting.sql` (경기 승패 배팅)
 21. `supabase/migrations/23_match_type_betting.sql` (단식/복식, 배팅 경기 지정·마감 시간, 배팅 500/1000, 집계 분리)
+22. `supabase/migrations/24_betting_lock_on_start.sql` (경기 시작·스코어 입력 후 배팅 변경 잠금)
 
 ### 1-2. 최초 관리자 지정
 
