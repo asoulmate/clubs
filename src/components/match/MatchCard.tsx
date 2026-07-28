@@ -44,6 +44,13 @@ interface MatchCardProps {
   /** 같은 날짜 경기 목록 (유튜브 후보에서 이미 연결된 영상 제외) */
   dayMatches?: MatchWithPlayers[]
   onChanged: () => void
+  /** 길게 눌러 순서 변경용 드래그 핸들 props (dnd-kit listeners/attributes) */
+  dragHandleProps?: Record<string, unknown>
+  isDragging?: boolean
+  /** 차선책: 한 칸 위로 */
+  onMoveUp?: () => void
+  /** 차선책: 한 칸 아래로 */
+  onMoveDown?: () => void
 }
 
 const TEAM_POSITIONS: Record<TeamSide, PlayerPosition[]> = {
@@ -72,7 +79,16 @@ const STATUS_CARD_STYLES: Record<MatchStatus, string> = {
  * 경기 카드 (모바일에서 많은 경기를 한 화면에 보기 위한 압축 레이아웃)
  *  [A팀 이름 2줄(가운데)] [A점수] : [B점수] [B팀 이름 2줄(가운데)]
  */
-export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProps) {
+export function MatchCard({
+  match,
+  index,
+  dayMatches,
+  onChanged,
+  dragHandleProps,
+  isDragging = false,
+  onMoveUp,
+  onMoveDown,
+}: MatchCardProps) {
   const profile = useAuthStore((s) => s.profile)
   const youtubeEnabled = useClubStore((s) => s.club?.youtube_enabled ?? false)
   const showToast = useToastStore((s) => s.show)
@@ -219,11 +235,26 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
 
   return (
     <article
-      className={`rounded-2xl border-2 p-3 shadow-sm ${STATUS_CARD_STYLES[match.status]}`}
+      className={`rounded-2xl border-2 p-3 shadow-sm ${STATUS_CARD_STYLES[match.status]} ${
+        isDragging ? 'opacity-70 ring-2 ring-green-500' : ''
+      }`}
     >
-      {/* 헤더: 경기 번호 + 상태 + 삭제/취소 */}
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex flex-wrap items-center gap-1.5">
+      {/* 헤더: 순서 핸들 + 경기 번호 + 상태 + 삭제/취소 */}
+      <div className="mb-2 flex items-center justify-between gap-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {dragHandleProps && (
+            <button
+              type="button"
+              aria-label="길게 눌러 순서 변경"
+              title="길게 눌러 끌어 순서를 바꿀 수 있습니다"
+              className="flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-lg text-gray-400 active:bg-gray-100 active:text-gray-700"
+              {...dragHandleProps}
+            >
+              <span aria-hidden="true" className="text-lg leading-none">
+                ⠿
+              </span>
+            </button>
+          )}
           <span className="font-bold text-gray-700">#{index}</span>
           <StatusBadge status={match.status} />
           <span
@@ -239,7 +270,29 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5">
+          {onMoveUp && (
+            <button
+              type="button"
+              aria-label="한 칸 위로"
+              disabled={busy}
+              onClick={onMoveUp}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-gray-500 active:bg-gray-100 disabled:opacity-30"
+            >
+              ↑
+            </button>
+          )}
+          {onMoveDown && (
+            <button
+              type="button"
+              aria-label="한 칸 아래로"
+              disabled={busy}
+              onClick={onMoveDown}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-gray-500 active:bg-gray-100 disabled:opacity-30"
+            >
+              ↓
+            </button>
+          )}
           {profile && canCancelMatch(profile, match) && (
             <button
               type="button"

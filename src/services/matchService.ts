@@ -20,6 +20,7 @@ export async function fetchMatchesByDate(
     .select(MATCH_SELECT)
     .eq('match_date', date)
     .eq('club_id', clubId)
+    .order('display_order', { ascending: true })
     .order('created_at', { ascending: true })
 
   if (error) throw error
@@ -39,6 +40,7 @@ export async function fetchMatchesByDateRange(
     .gte('match_date', fromDate)
     .lte('match_date', toDate)
     .order('match_date', { ascending: true })
+    .order('display_order', { ascending: true })
     .order('created_at', { ascending: true })
 
   if (error) throw error
@@ -68,6 +70,7 @@ function normalizeMatches(matches: MatchWithPlayers[]): MatchWithPlayers[] {
     match_type: m.match_type === 'singles' ? 'singles' : 'doubles',
     is_betting: Boolean(m.is_betting),
     betting_deadline: m.betting_deadline ?? null,
+    display_order: typeof m.display_order === 'number' ? m.display_order : 0,
     players: (m.players ?? []).map((p) => ({
       ...p,
       profile: p.profile
@@ -176,6 +179,20 @@ export async function cancelMatch(matchId: string, reason?: string): Promise<voi
 /** 경기 삭제 (개설자: 확정 전 / 관리자·서브 관리자: 항상) */
 export async function deleteMatch(matchId: string): Promise<void> {
   const { error } = await supabase.rpc('delete_match', { p_match_id: matchId })
+  if (error) throw error
+}
+
+/** 당일 경기 표시 순서 일괄 변경 (orderedIds = 위에서부터 순서) */
+export async function reorderMatches(
+  clubId: string,
+  matchDate: string,
+  orderedIds: string[],
+): Promise<void> {
+  const { error } = await supabase.rpc('reorder_matches', {
+    p_club_id: clubId,
+    p_match_date: matchDate,
+    p_ordered_ids: orderedIds,
+  })
   if (error) throw error
 }
 

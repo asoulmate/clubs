@@ -49,7 +49,12 @@ export function useMatchesByDate(date: string, clubId: string | undefined) {
         }
         const exists = prev.some((m) => m.id === matchId)
         const next = exists ? prev.map((m) => (m.id === matchId ? match : m)) : [...prev, match]
-        return next.sort((a, b) => a.created_at.localeCompare(b.created_at))
+        return next.sort((a, b) => {
+          const ao = a.display_order ?? 0
+          const bo = b.display_order ?? 0
+          if (ao !== bo) return ao - bo
+          return a.created_at.localeCompare(b.created_at)
+        })
       })
     } catch {
       // 단건 갱신 실패는 무시

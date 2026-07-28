@@ -87,6 +87,8 @@ export interface Match {
   is_betting: boolean
   /** 배팅 마감 시각 (배팅 경기에서만 존재, 경기 당일을 넘지 않음) */
   betting_deadline: string | null
+  /** 같은 클럽·날짜 내 화면 표시 순서 (1부터) */
+  display_order: number
   team_a_score: number | null
   team_b_score: number | null
   score_submitted_by: string | null

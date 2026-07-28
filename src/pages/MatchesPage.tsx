@@ -1,4 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { DateNavigator } from '../components/common/DateNavigator'
 import { EmptyState } from '../components/common/EmptyState'
 import { Spinner } from '../components/common/Spinner'
@@ -6,6 +22,7 @@ import { AbsencesPanel } from '../components/match/AbsencesPanel'
 import { CreateMatchDialog } from '../components/match/CreateMatchDialog'
 import { MatchCard } from '../components/match/MatchCard'
 import { useMatchesByDate } from '../hooks/useMatchesByDate'
+import { reorderMatches } from '../services/matchService'
 import {
   autoLinkYoutubeAroundDate,
   YOUTUBE_MATCH_WINDOW_DAYS,
@@ -14,9 +31,55 @@ import { useAuthStore } from '../stores/authStore'
 import { useClubStore } from '../stores/clubStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useToastStore } from '../stores/toastStore'
+import type { MatchWithPlayers } from '../types/domain'
 import { requiredPlayerCount } from '../types/domain'
 import { toErrorMessage } from '../utils/errors'
 import { todayKst } from '../utils/kst'
+
+function SortableMatchCard({
+  match,
+  index,
+  dayMatches,
+  showHandle,
+  canReorder,
+  onChanged,
+  onMoveUp,
+  onMoveDown,
+}: {
+  match: MatchWithPlayers
+  index: number
+  dayMatches: MatchWithPlayers[]
+  showHandle: boolean
+  canReorder: boolean
+  onChanged: () => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: match.id,
+    disabled: !canReorder,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className={isDragging ? 'relative z-20' : undefined}>
+      <MatchCard
+        match={match}
+        index={index}
+        dayMatches={dayMatches}
+        onChanged={onChanged}
+        isDragging={isDragging}
+        dragHandleProps={showHandle ? { ...attributes, ...listeners } : undefined}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+      />
+    </div>
+  )
+}
 
 /**
  * 오늘의 경기 페이지 (메인)
@@ -26,13 +89,74 @@ export function MatchesPage() {
   const club = useClubStore((s) => s.club)
   const clubId = club?.id
   const { matches, loading, error, refresh } = useMatchesByDate(date, clubId)
+  const [ordered, setOrdered] = useState<MatchWithPlayers[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [syncingYoutube, setSyncingYoutube] = useState(false)
+  const [reordering, setReordering] = useState(false)
   const profile = useAuthStore((s) => s.profile)
   const settings = useSettingsStore((s) => s.settings)
   const showToast = useToastStore((s) => s.show)
 
-  const unlinkedCount = matches.filter(
+  useEffect(() => {
+    setOrdered(matches)
+  }, [matches])
+
+  const showReorder = Boolean(profile) && ordered.length > 1
+  const canInteractReorder = showReorder && !reordering
+
+  const sensors = useSensors(
+    useSensor(TouchSensor, {
+      // 길게 눌러 드래그 (스크롤과 구분)
+      activationConstraint: { delay: 220, tolerance: 8 },
+    }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+  )
+
+  const sortableIds = useMemo(() => ordered.map((m) => m.id), [ordered])
+
+  const persistOrder = async (next: MatchWithPlayers[]) => {
+    if (!clubId) return
+    setOrdered(next)
+    setReordering(true)
+    try {
+      await reorderMatches(
+        clubId,
+        date,
+        next.map((m) => m.id),
+      )
+      // display_order 동기화 (로컬 번호 갱신)
+      setOrdered(
+        next.map((m, i) => ({
+          ...m,
+          display_order: i + 1,
+        })),
+      )
+    } catch (err) {
+      showToast(toErrorMessage(err), 'error')
+      await refresh()
+    } finally {
+      setReordering(false)
+    }
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id || !canInteractReorder) return
+    const oldIndex = ordered.findIndex((m) => m.id === active.id)
+    const newIndex = ordered.findIndex((m) => m.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+    void persistOrder(arrayMove(ordered, oldIndex, newIndex))
+  }
+
+  const moveBy = (index: number, delta: number) => {
+    const nextIndex = index + delta
+    if (nextIndex < 0 || nextIndex >= ordered.length || !canInteractReorder) return
+    void persistOrder(arrayMove(ordered, index, nextIndex))
+  }
+
+  const unlinkedCount = ordered.filter(
     (m) =>
       !m.youtube_video_id &&
       m.status !== 'canceled' &&
@@ -110,19 +234,34 @@ export function MatchesPage() {
             다시 시도
           </button>
         </div>
-      ) : matches.length === 0 ? (
+      ) : ordered.length === 0 ? (
         <EmptyState message="등록된 경기가 없습니다. 첫 경기를 만들어보세요!" />
       ) : (
         <div className="flex flex-col gap-3">
-          {matches.map((match, i) => (
-            <MatchCard
-              key={match.id}
-              match={match}
-              index={i + 1}
-              dayMatches={matches}
-              onChanged={() => void refresh()}
-            />
-          ))}
+          {showReorder && (
+            <p className="text-center text-xs text-gray-400">
+              ⠿ 를 길게 눌러 끌어 순서를 바꾸거나, ↑↓ 버튼으로 이동할 수 있습니다.
+            </p>
+          )}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+              {ordered.map((match, i) => (
+                <SortableMatchCard
+                  key={match.id}
+                  match={match}
+                  index={i + 1}
+                  dayMatches={ordered}
+                  showHandle={showReorder}
+                  canReorder={canInteractReorder}
+                  onChanged={() => void refresh()}
+                  onMoveUp={canInteractReorder && i > 0 ? () => moveBy(i, -1) : undefined}
+                  onMoveDown={
+                    canInteractReorder && i < ordered.length - 1 ? () => moveBy(i, 1) : undefined
+                  }
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 
