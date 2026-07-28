@@ -78,6 +78,7 @@ export function PlayerSummaryDialog() {
             <p className="text-sm text-gray-500">
               {AWARD_LEVEL_LABELS[profile.award_level]}
               {profile.is_guest ? ' · 미가입(게스트)' : ''}
+              {profile.is_guest && profile.affiliation ? ` · ${profile.affiliation}` : ''}
             </p>
           </div>
 

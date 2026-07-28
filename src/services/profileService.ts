@@ -5,9 +5,14 @@ import type { AwardLevel, Profile } from '../types/domain'
 // 사용자 프로필 데이터 접근 계층
 // ============================================================
 
-/** DB 행 → Profile (구스키마 is_guest 누락 대비) */
-function toProfile(row: Profile & { is_guest?: boolean | null }): Profile {
-  return { ...row, is_guest: Boolean(row.is_guest) }
+/** DB 행 → Profile (구스키마 누락 대비) */
+function toProfile(row: Profile & { is_guest?: boolean | null; affiliation?: string | null }): Profile {
+  const aff = row.affiliation?.trim()
+  return {
+    ...row,
+    is_guest: Boolean(row.is_guest),
+    affiliation: aff ? aff : null,
+  }
 }
 
 /** 내 프로필 조회 */
@@ -57,13 +62,18 @@ export async function searchActiveProfiles(query: string, limit = 20): Promise<P
 }
 
 /**
- * 게스트 선수 수기 등록 (이름 + 입상).
- * 동일 이름·입상 활성 게스트가 있으면 DB에서 재사용한다.
+ * 게스트 선수 수기 등록 (이름 + 입상 + 소속).
+ * 동일 이름·입상·소속 활성 게스트가 있으면 DB에서 재사용한다.
  */
-export async function createGuestProfile(name: string, awardLevel: AwardLevel): Promise<Profile> {
+export async function createGuestProfile(
+  name: string,
+  awardLevel: AwardLevel,
+  affiliation: string,
+): Promise<Profile> {
   const { data, error } = await supabase.rpc('create_guest_profile', {
     p_name: name.trim(),
     p_award_level: awardLevel,
+    p_affiliation: affiliation.trim(),
   })
   if (error) throw error
   return toProfile(data as Profile)

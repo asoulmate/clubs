@@ -17,7 +17,11 @@ export async function fetchAllUsers(search = ''): Promise<Profile[]> {
 
   const { data, error } = await builder
   if (error) throw error
-  return (data ?? []).map((row) => ({ ...row, is_guest: Boolean(row.is_guest) }))
+  return (data ?? []).map((row) => ({
+    ...row,
+    is_guest: Boolean(row.is_guest),
+    affiliation: row.affiliation?.trim() ? row.affiliation.trim() : null,
+  }))
 }
 
 /** 사용자 역할/활성/이름/입상 변경 (이름·입상·역할은 admin만 — DB 검증) */

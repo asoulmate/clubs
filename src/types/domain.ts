@@ -36,6 +36,8 @@ export interface Profile {
   is_active: boolean
   /** true면 비밀번호 미설정 게스트 (회원가입 시 실계정으로 연동 가능) */
   is_guest: boolean
+  /** 소속 (게스트 수기 등록 시 입력, 일반 회원은 보통 null) */
+  affiliation: string | null
   created_at: string
   updated_at: string
 }
@@ -140,6 +142,8 @@ export interface PlayerStatsRow {
   total_match_days: number
   /** 기간 내 무단 결석 횟수 */
   absences: number
+  is_guest?: boolean
+  affiliation?: string | null
 }
 
 /** 순위·파생 지표가 부여된 통계 행 */

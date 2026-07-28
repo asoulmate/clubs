@@ -134,7 +134,8 @@ export function AbsencesPanel({ date }: AbsencesPanelProps) {
                 userId={row.user_id}
                 name={row.profile?.name ?? '(알 수 없음)'}
                 awardLevel={row.profile?.award_level}
-                className="justify-start font-extrabold text-red-800"
+                affiliation={row.profile?.is_guest ? row.profile?.affiliation : null}
+                className="items-start justify-start font-extrabold text-red-800"
               />
               {canRemove(row) && (
                 <button

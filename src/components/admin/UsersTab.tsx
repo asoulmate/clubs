@@ -243,6 +243,7 @@ export function UsersTab() {
                 <p className="text-xs text-gray-400">
                   {AWARD_LEVEL_LABELS[user.award_level]}
                   {user.is_guest ? ' · 로그인 계정 없음' : ''}
+                  {user.is_guest && user.affiliation ? ` · ${user.affiliation}` : ''}
                 </p>
               </div>
 

@@ -146,7 +146,8 @@ export function MatchCard({ match, index, dayMatches, onChanged }: MatchCardProp
           userId={player.user_id}
           name={player.profile?.name ?? '(알 수 없음)'}
           awardLevel={player.profile?.award_level}
-          className="w-full justify-center text-center no-underline"
+          affiliation={player.profile?.is_guest ? player.profile?.affiliation : null}
+          className="w-full items-center justify-center text-center no-underline"
         />
         {player.profile?.is_guest && (
           <span className="pointer-events-none absolute left-0.5 top-0.5 rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-800">

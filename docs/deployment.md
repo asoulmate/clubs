@@ -18,6 +18,7 @@ SQL Editor에서 순서대로 실행:
 10. `supabase/migrations/12_updates.sql` (유튜브 영상 연동)
 11. `supabase/migrations/13_updates.sql` (최근 경기 파트너·상대 입상)
 12. `supabase/migrations/14_updates.sql` (참가율: 경기 등록일 기준)
+13. `supabase/migrations/15_updates.sql` (게스트 소속)
 
 ### 1-2. 최초 관리자 지정
 

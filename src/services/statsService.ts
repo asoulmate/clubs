@@ -16,7 +16,11 @@ import type {
 export async function fetchPlayerStats(from: string, to: string): Promise<PlayerStatsRow[]> {
   const { data, error } = await supabase.rpc('get_player_stats', { p_from: from, p_to: to })
   if (error) throw error
-  return (data ?? []) as PlayerStatsRow[]
+  return ((data ?? []) as PlayerStatsRow[]).map((row) => ({
+    ...row,
+    is_guest: Boolean(row.is_guest),
+    affiliation: row.affiliation?.trim() ? row.affiliation.trim() : null,
+  }))
 }
 
 /** 특정 사용자의 누적 요약 (이름 클릭 팝오버용) */

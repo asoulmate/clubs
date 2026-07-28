@@ -20,7 +20,7 @@ interface PlayerSearchInputProps {
  *  - debounce 적용으로 불필요한 조회 방지
  *  - 비활성 사용자는 서비스 계층에서 제외
  *  - 동명이인 구분을 위해 입상 구분을 함께 표시
- *  - 미가입 선수는 이름·입상으로 게스트 등록 가능
+ *  - 미가입 선수는 이름·입상·소속으로 게스트 등록 가능
  */
 export function PlayerSearchInput({
   excludeIds = [],
@@ -35,6 +35,7 @@ export function PlayerSearchInput({
   const [guestOpen, setGuestOpen] = useState(false)
   const [guestName, setGuestName] = useState('')
   const [guestAward, setGuestAward] = useState<AwardLevel>('none')
+  const [guestAffiliation, setGuestAffiliation] = useState('')
   const [guestSaving, setGuestSaving] = useState(false)
   const [guestError, setGuestError] = useState<string | null>(null)
   const debouncedQuery = useDebounce(query, 300)
@@ -64,6 +65,7 @@ export function PlayerSearchInput({
   const openGuestForm = () => {
     setGuestName(query.trim())
     setGuestAward('none')
+    setGuestAffiliation('')
     setGuestError(null)
     setGuestOpen(true)
   }
@@ -74,9 +76,13 @@ export function PlayerSearchInput({
       setGuestError('이름을 입력해주세요.')
       return
     }
+    if (guestAffiliation.trim().length < 1) {
+      setGuestError('소속을 입력해주세요.')
+      return
+    }
     setGuestSaving(true)
     try {
-      const guest = await createGuestProfile(guestName.trim(), guestAward)
+      const guest = await createGuestProfile(guestName.trim(), guestAward, guestAffiliation.trim())
       onSelect(guest)
       setGuestOpen(false)
       setQuery('')
@@ -115,15 +121,24 @@ export function PlayerSearchInput({
               onClick={() => onSelect(profile)}
               className="flex min-h-11 w-full items-center justify-between border-b border-gray-50 px-4 py-2 text-left last:border-b-0 active:bg-green-50"
             >
-              <span className="font-semibold">
-                {profile.name}
-                {profile.is_guest && (
-                  <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                    게스트
+              <span className="min-w-0">
+                <span className="font-semibold">
+                  {profile.name}
+                  {profile.is_guest && (
+                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      게스트
+                    </span>
+                  )}
+                </span>
+                {profile.affiliation ? (
+                  <span className="mt-0.5 block truncate text-xs text-gray-400">
+                    {profile.affiliation}
                   </span>
-                )}
+                ) : null}
               </span>
-              <span className="text-sm text-gray-500">{AWARD_LEVEL_LABELS[profile.award_level]}</span>
+              <span className="shrink-0 text-sm text-gray-500">
+                {AWARD_LEVEL_LABELS[profile.award_level]}
+              </span>
             </button>
           ))
         )}
@@ -137,7 +152,7 @@ export function PlayerSearchInput({
               onClick={openGuestForm}
               className="w-full text-left text-sm font-semibold text-amber-800 active:opacity-70"
             >
-              + 미가입 선수 게스트로 등록 (이름·입상 수기 입력)
+              + 미가입 선수 게스트로 등록 (이름·소속·입상 수기 입력)
             </button>
           ) : (
             <div className="flex flex-col gap-2">
@@ -154,6 +169,17 @@ export function PlayerSearchInput({
                   onChange={(e) => setGuestName(e.target.value)}
                   className="h-11 rounded-lg border border-gray-300 px-3 text-base focus:border-green-600 focus:outline-none"
                   placeholder="실명 입력"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-gray-600">소속</span>
+                <input
+                  type="text"
+                  maxLength={40}
+                  value={guestAffiliation}
+                  onChange={(e) => setGuestAffiliation(e.target.value)}
+                  className="h-11 rounded-lg border border-gray-300 px-3 text-base focus:border-green-600 focus:outline-none"
+                  placeholder="예: ○○테니스클럽"
                 />
               </label>
               <label className="flex flex-col gap-1">

@@ -82,11 +82,23 @@ export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialo
 
               {pick ? (
                 <div className="flex min-h-12 items-center justify-between rounded-xl bg-gray-50 px-3">
-                  <span className="font-semibold">
-                    {pick.name}
-                    <span className="ml-2 text-sm font-normal text-gray-500">
-                      {AWARD_LEVEL_LABELS[pick.award_level]}
+                  <span className="min-w-0">
+                    <span className="font-semibold">
+                      {pick.name}
+                      {pick.is_guest && (
+                        <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                          G
+                        </span>
+                      )}
+                      <span className="ml-2 text-sm font-normal text-gray-500">
+                        {AWARD_LEVEL_LABELS[pick.award_level]}
+                      </span>
                     </span>
+                    {pick.is_guest && pick.affiliation ? (
+                      <span className="mt-0.5 block truncate text-xs text-gray-400">
+                        {pick.affiliation}
+                      </span>
+                    ) : null}
                   </span>
                   <button
                     type="button"
@@ -98,7 +110,7 @@ export function CreateMatchDialog({ date, onClose, onCreated }: CreateMatchDialo
                         return next
                       })
                     }
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 active:bg-gray-200"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 active:bg-gray-200"
                   >
                     ×
                   </button>

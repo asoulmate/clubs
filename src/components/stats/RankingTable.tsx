@@ -243,7 +243,8 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
                       userId={row.user_id}
                       name={row.name}
                       awardLevel={row.award_level}
-                      className="min-h-9 justify-start"
+                      affiliation={row.is_guest ? row.affiliation : null}
+                      className="min-h-9 items-start justify-start"
                     />
                   </td>
                   <td className={numCell}>{row.matches_played}</td>

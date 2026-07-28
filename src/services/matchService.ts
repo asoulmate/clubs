@@ -61,7 +61,11 @@ function normalizeMatches(matches: MatchWithPlayers[]): MatchWithPlayers[] {
     players: (m.players ?? []).map((p) => ({
       ...p,
       profile: p.profile
-        ? { ...p.profile, is_guest: Boolean(p.profile.is_guest) }
+        ? {
+            ...p.profile,
+            is_guest: Boolean(p.profile.is_guest),
+            affiliation: p.profile.affiliation?.trim() ? p.profile.affiliation.trim() : null,
+          }
         : p.profile,
     })),
   }))

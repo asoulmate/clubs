@@ -150,6 +150,8 @@ export function PlayerDetailPage() {
         </h1>
         <p className="text-sm text-gray-500">
           {AWARD_LEVEL_LABELS[profile.award_level]}
+          {profile.is_guest && profile.affiliation ? ` · ${profile.affiliation}` : ''}
+          {profile.is_guest ? ' · 게스트' : ''}
           {!profile.is_active && ' · 비활성'}
         </p>
       </div>

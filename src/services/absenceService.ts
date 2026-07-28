@@ -23,7 +23,14 @@ export async function fetchAbsencesByDate(date: string): Promise<AbsenceRow[]> {
     .order('created_at', { ascending: true })
 
   if (error) throw error
-  return (data ?? []) as unknown as AbsenceRow[]
+  return ((data ?? []) as unknown as AbsenceRow[]).map((row) => ({
+    ...row,
+    profile: {
+      ...row.profile,
+      is_guest: Boolean(row.profile?.is_guest),
+      affiliation: row.profile?.affiliation?.trim() ? row.profile.affiliation.trim() : null,
+    },
+  }))
 }
 
 /** 무단 결석 등록 */
