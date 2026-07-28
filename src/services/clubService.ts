@@ -7,6 +7,13 @@ export async function getClubBySlug(slug: string): Promise<Club> {
   return data as Club
 }
 
+/** 회원가입용 공개 클럽 목록 (이름·슬러그만) */
+export async function listClubsForSignup(): Promise<Pick<Club, 'id' | 'name' | 'slug'>[]> {
+  const { data, error } = await supabase.rpc('list_clubs_for_signup')
+  if (error) throw error
+  return (data ?? []) as Pick<Club, 'id' | 'name' | 'slug'>[]
+}
+
 export async function listMyClubs(): Promise<ClubMembership[]> {
   const { data, error } = await supabase.rpc('list_my_clubs')
   if (error) throw error

@@ -1,15 +1,23 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { AWARD_LEVEL_OPTIONS } from '../../constants/labels'
 import { signUpWithEmail } from '../../services/authService'
-import type { AwardLevel } from '../../types/domain'
+import { listClubsForSignup } from '../../services/clubService'
+import type { AwardLevel, Club } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 import { AuthCard, authButtonClass, authInputClass } from './AuthCard'
+
+type ClubOption = Pick<Club, 'id' | 'name' | 'slug'>
 
 export function SignupPage() {
   const { clubSlug: paramSlug } = useParams<{ clubSlug?: string }>()
   const [searchParams] = useSearchParams()
-  const clubSlug = (paramSlug ?? searchParams.get('club') ?? '').trim().toLowerCase()
+  const presetSlug = (paramSlug ?? searchParams.get('club') ?? '').trim().toLowerCase()
+
+  const [clubs, setClubs] = useState<ClubOption[]>([])
+  const [clubsLoading, setClubsLoading] = useState(true)
+  const [clubsError, setClubsError] = useState<string | null>(null)
+  const [clubSlug, setClubSlug] = useState(presetSlug)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,13 +28,39 @@ export function SignupPage() {
   const [needsConfirm, setNeedsConfirm] = useState(false)
 
   const loginTo = clubSlug ? `/login?club=${encodeURIComponent(clubSlug)}` : '/login'
+  const selectedClub = clubs.find((c) => c.slug === clubSlug) ?? null
+
+  useEffect(() => {
+    let stale = false
+    setClubsLoading(true)
+    setClubsError(null)
+    void listClubsForSignup()
+      .then((list) => {
+        if (stale) return
+        setClubs(list)
+        // URL/쿼리에 슬러그가 없으면 첫 클럽을 기본 선택
+        setClubSlug((prev) => {
+          if (prev && list.some((c) => c.slug === prev)) return prev
+          return list[0]?.slug ?? ''
+        })
+      })
+      .catch((err) => {
+        if (!stale) setClubsError(toErrorMessage(err))
+      })
+      .finally(() => {
+        if (!stale) setClubsLoading(false)
+      })
+    return () => {
+      stale = true
+    }
+  }, [])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
 
     if (!clubSlug) {
-      setError('클럽 정보가 없습니다. 가입 링크(#/c/{슬러그}/signup 또는 ?club=슬러그)로 들어와 주세요.')
+      setError('가입할 클럽을 선택해주세요.')
       return
     }
     if (name.trim().length < 1) {
@@ -75,17 +109,38 @@ export function SignupPage() {
 
   return (
     <AuthCard title="회원가입">
-      {clubSlug ? (
-        <p className="mb-3 rounded-xl bg-green-50 px-3 py-2 text-center text-sm text-green-800">
-          클럽 <strong>#{clubSlug}</strong> 에 가입합니다.
-        </p>
-      ) : (
-        <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-sm text-amber-800">
-          클럽 슬러그가 필요합니다. 예: #/c/morning-star/signup
-        </p>
-      )}
-
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-600">클럽</span>
+          {clubsLoading ? (
+            <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500">
+              클럽 목록 불러오는 중…
+            </p>
+          ) : clubsError ? (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{clubsError}</p>
+          ) : clubs.length === 0 ? (
+            <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              가입 가능한 클럽이 없습니다. 관리자에게 문의해주세요.
+            </p>
+          ) : (
+            <select
+              required
+              value={clubSlug}
+              onChange={(e) => setClubSlug(e.target.value)}
+              className={authInputClass}
+            >
+              {clubs.map((c) => (
+                <option key={c.id} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {selectedClub && (
+            <span className="text-xs text-gray-400">{selectedClub.name}에 가입합니다.</span>
+          )}
+        </label>
+
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium text-gray-600">이메일</span>
           <input
@@ -146,7 +201,11 @@ export function SignupPage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <button type="submit" disabled={loading || !clubSlug} className={authButtonClass}>
+        <button
+          type="submit"
+          disabled={loading || clubsLoading || !clubSlug || clubs.length === 0}
+          className={authButtonClass}
+        >
           {loading ? '가입 중...' : '회원가입'}
         </button>
       </form>
