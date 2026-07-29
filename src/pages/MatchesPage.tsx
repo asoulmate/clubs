@@ -180,12 +180,12 @@ export function MatchesPage() {
         </div>
       )}
 
-      <div className="pb-safe fixed bottom-20 left-1/2 z-30 flex -translate-x-1/2 gap-2 md:bottom-8">
+      <div className="pb-safe fixed bottom-20 left-1/2 z-30 flex w-[calc(100%_-_1rem)] max-w-xs -translate-x-1/2 justify-center gap-2 md:bottom-8">
         {profile && (
           <button
             type="button"
             onClick={() => setDrawOpen(true)}
-            className="flex h-13 items-center gap-1.5 rounded-full border-2 border-green-700 bg-white px-4 py-3 text-sm font-bold text-green-800 shadow-lg active:bg-green-50"
+            className="flex h-13 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full border-2 border-green-700 bg-white px-3 py-3 text-xs font-bold text-green-800 shadow-lg active:bg-green-50 min-[360px]:text-sm"
           >
             추첨 편성
           </button>
@@ -193,9 +193,9 @@ export function MatchesPage() {
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="flex h-13 items-center gap-2 rounded-full bg-green-700 px-6 py-3 text-base font-bold text-white shadow-lg active:bg-green-800"
+          className="flex h-13 min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-green-700 px-3 py-3 text-xs font-bold text-white shadow-lg active:bg-green-800 min-[360px]:text-sm"
         >
-          <span className="text-xl leading-none" aria-hidden="true">
+          <span className="text-lg leading-none" aria-hidden="true">
             +
           </span>
           경기 만들기

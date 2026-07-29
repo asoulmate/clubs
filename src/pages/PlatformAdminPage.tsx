@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import {
   platformCreateClub,
+  platformDeleteClub,
   platformListClubs,
   platformUpdateClub,
 } from '../services/clubService'
@@ -20,6 +21,7 @@ export function PlatformAdminPage() {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deletingClubId, setDeletingClubId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -70,6 +72,24 @@ export function PlatformAdminPage() {
       await load()
     } catch (err) {
       showToast(toErrorMessage(err), 'error')
+    }
+  }
+
+  const handleDelete = async (club: Club) => {
+    const confirmed = window.confirm(
+      `「${club.name}」 클럽을 삭제할까요?\n\n회원 소속, 경기, 배팅, 대회 참가 기록 등 클럽의 모든 데이터가 영구 삭제되며 복구할 수 없습니다.`,
+    )
+    if (!confirmed) return
+
+    setDeletingClubId(club.id)
+    try {
+      await platformDeleteClub(club.id)
+      showToast('클럽을 삭제했습니다.', 'success')
+      await load()
+    } catch (err) {
+      showToast(toErrorMessage(err), 'error')
+    } finally {
+      setDeletingClubId(null)
     }
   }
 
@@ -124,11 +144,12 @@ export function PlatformAdminPage() {
                   </Link>
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <label className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
                   <input
                     type="checkbox"
                     checked={club.youtube_enabled}
+                    disabled={deletingClubId === club.id}
                     onChange={(e) => void toggleFlag(club, 'youtube_enabled', e.target.checked)}
                   />
                   유튜브
@@ -137,10 +158,19 @@ export function PlatformAdminPage() {
                   <input
                     type="checkbox"
                     checked={club.absence_enabled}
+                    disabled={deletingClubId === club.id}
                     onChange={(e) => void toggleFlag(club, 'absence_enabled', e.target.checked)}
                   />
                   무단결석
                 </label>
+                <button
+                  type="button"
+                  disabled={deletingClubId !== null}
+                  onClick={() => void handleDelete(club)}
+                  className="ml-auto rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-700 active:bg-red-50 disabled:opacity-50"
+                >
+                  {deletingClubId === club.id ? '삭제 중…' : '클럽 삭제'}
+                </button>
               </div>
             </li>
           ))}

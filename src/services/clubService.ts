@@ -42,6 +42,14 @@ export async function platformCreateClub(input: {
   return data as Club
 }
 
+/** 플랫폼 슈퍼관리자 전용: 클럽과 소속 데이터를 영구 삭제 */
+export async function platformDeleteClub(clubId: string): Promise<void> {
+  const { error } = await supabase.rpc('platform_delete_club', {
+    p_club_id: clubId,
+  })
+  if (error) throw error
+}
+
 export async function platformUpdateClub(
   clubId: string,
   updates: { name?: string; youtube_enabled?: boolean; absence_enabled?: boolean },
