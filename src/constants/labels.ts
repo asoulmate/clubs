@@ -6,27 +6,44 @@ export const MATCH_TYPE_LABELS: Record<MatchType, string> = {
   doubles: '복식',
 }
 
-/** 입상 구분 한글 라벨 */
+/** 입상 구분 한글 라벨 (7단계) */
 export const AWARD_LEVEL_LABELS: Record<AwardLevel, string> = {
-  open: '오픈부입상',
-  national_rookie: '전국신인부입상',
-  local_rookie: '지역신인부입상',
+  open_champion: '오픈부 우승',
+  open_place: '오픈부 입상',
+  national_rookie_champion: '전국신인부 우승',
+  national_rookie_place: '전국신인부 입상',
+  local_rookie_champion: '지역신인부 우승',
+  local_rookie_place: '지역신인부 입상',
   none: '비입상',
+  // 구버전 호환 (마이그레이션 전)
+  open: '오픈부 입상',
+  national_rookie: '전국신인부 입상',
+  local_rookie: '지역신인부 입상',
 }
 
+/** 회원가입·편집용 선택지 (7단계) */
 export const AWARD_LEVEL_OPTIONS: { value: AwardLevel; label: string }[] = [
-  { value: 'open', label: '오픈부입상' },
-  { value: 'national_rookie', label: '전국신인부입상' },
-  { value: 'local_rookie', label: '지역신인부입상' },
+  { value: 'open_champion', label: '오픈부 우승' },
+  { value: 'open_place', label: '오픈부 입상' },
+  { value: 'national_rookie_champion', label: '전국신인부 우승' },
+  { value: 'national_rookie_place', label: '전국신인부 입상' },
+  { value: 'local_rookie_champion', label: '지역신인부 우승' },
+  { value: 'local_rookie_place', label: '지역신인부 입상' },
   { value: 'none', label: '비입상' },
 ]
 
 /** 이름 오른쪽 표시용 입상 아이콘 (비입상은 빈 문자열) */
 export const AWARD_LEVEL_ICONS: Record<AwardLevel, string> = {
-  open: '🏆',
-  national_rookie: '⭐',
-  local_rookie: '💫',
+  open_champion: '🏆',
+  open_place: '🏅',
+  national_rookie_champion: '⭐',
+  national_rookie_place: '✨',
+  local_rookie_champion: '💫',
+  local_rookie_place: '🔹',
   none: '',
+  open: '🏅',
+  national_rookie: '✨',
+  local_rookie: '🔹',
 }
 
 /** 사용자 역할 한글 라벨 */

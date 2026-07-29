@@ -6,7 +6,18 @@
 export type UserRole = 'user' | 'sub_admin' | 'admin'
 
 /** 입상 구분 */
-export type AwardLevel = 'open' | 'national_rookie' | 'local_rookie' | 'none'
+export type AwardLevel =
+  | 'open_champion'
+  | 'open_place'
+  | 'national_rookie_champion'
+  | 'national_rookie_place'
+  | 'local_rookie_champion'
+  | 'local_rookie_place'
+  | 'none'
+  /** @deprecated 이관 전 값 — 표시 호환용 */
+  | 'open'
+  | 'national_rookie'
+  | 'local_rookie'
 
 /** 경기 상태 */
 export type MatchStatus = 'open' | 'ready' | 'in_progress' | 'submitted' | 'confirmed' | 'canceled'

@@ -52,8 +52,7 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
   const [scored, setScored] = useState<ScoredPlayer[] | null>(null)
   const [result, setResult] = useState<DrawResult | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(true)
-  const [scoring, setScoring] = useState(false)
-  const [drawing, setDrawing] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [creating, setCreating] = useState(false)
   const [filter, setFilter] = useState('')
 
@@ -82,9 +81,13 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
     return members.filter((m) => m.name.toLowerCase().includes(q))
   }, [members, filter])
 
+  const scoredSelected = useMemo(() => {
+    if (!scored) return []
+    return scored.filter((p) => selectedIds.has(p.profile.id))
+  }, [scored, selectedIds])
+
   const toggle = (id: string) => {
     setResult(null)
-    setScored(null)
     setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -96,18 +99,29 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
   const selectedCount = selectedIds.size
   const canDraw = selectedCount >= 4 && selectedCount % 4 === 0
 
-  const handleScoreAndDraw = async () => {
+  const runDrawPipeline = async (reuseScored: ScoredPlayer[] | null) => {
     if (!clubId) return
     if (!canDraw) {
       showToast('참석자는 4명 단위로 선택해주세요. (예: 4, 8, 12명)', 'error')
       return
     }
-    setScoring(true)
-    setDrawing(true)
+    setBusy(true)
     try {
-      const profiles = members.filter((m) => selectedIds.has(m.id))
-      const scoredList = await scoreAttendees(profiles, clubId)
-      setScored(scoredList)
+      let scoredList = reuseScored
+      if (!scoredList || scoredList.length !== selectedCount) {
+        const profiles = members.filter((m) => selectedIds.has(m.id))
+        scoredList = await scoreAttendees(profiles, clubId)
+        setScored(scoredList)
+      } else {
+        // 선택 변경 반영
+        scoredList = scoredList.filter((p) => selectedIds.has(p.profile.id))
+        if (scoredList.length !== selectedCount) {
+          const profiles = members.filter((m) => selectedIds.has(m.id))
+          scoredList = await scoreAttendees(profiles, clubId)
+          setScored(scoredList)
+        }
+      }
+
       const history = await fetchPairingHistory(
         clubId,
         scoredList.map((p) => p.profile.id),
@@ -119,28 +133,10 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
         return
       }
       setResult(draw)
-      showToast(`${draw.matches.length}개 경기 후보를 만들었습니다. 확인 후 생성하세요.`, 'success')
     } catch (err) {
       showToast(toErrorMessage(err), 'error')
     } finally {
-      setScoring(false)
-      setDrawing(false)
-    }
-  }
-
-  const handleRedraw = async () => {
-    if (!clubId || !scored) return
-    setDrawing(true)
-    try {
-      const history = await fetchPairingHistory(
-        clubId,
-        scored.map((p) => p.profile.id),
-      )
-      setResult(executeDraw(mode, scored, history))
-    } catch (err) {
-      showToast(toErrorMessage(err), 'error')
-    } finally {
-      setDrawing(false)
+      setBusy(false)
     }
   }
 
@@ -163,7 +159,8 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
     <Dialog open onClose={onClose} title="균형 추첨 편성">
       <div className="flex max-h-[70dvh] flex-col gap-4 overflow-y-auto">
         <p className="text-sm text-gray-600">
-          당일 참석자를 고른 뒤 추첨 방식을 선택하세요. 복식 경기가 자동 생성됩니다.
+          당일 참석자를 고르고 방식을 선택한 뒤 추첨하세요. 개인점수와 팀 합산을 확인한 다음
+          경기를 생성하거나 재생성할 수 있습니다.
         </p>
 
         <fieldset className="flex flex-col gap-2">
@@ -194,8 +191,8 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
         </fieldset>
 
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-bold">참석자 ({selectedCount}명)</h3>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-bold">당일 참석자 ({selectedCount}명)</h3>
             <input
               type="search"
               value={filter}
@@ -209,51 +206,66 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
               <Spinner />
             </div>
           ) : (
-            <ul className="max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white">
-              {filtered.map((m) => (
-                <li key={m.id} className="border-b border-gray-50 last:border-0">
-                  <label className="flex cursor-pointer items-center gap-2 px-3 py-2 active:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(m.id)}
-                      onChange={() => toggle(m.id)}
-                    />
-                    <span className="font-medium text-gray-900">{m.name}</span>
-                    <span className="text-xs text-gray-400">
-                      {AWARD_LEVEL_LABELS[m.award_level]}
-                    </span>
-                  </label>
-                </li>
-              ))}
+            <ul className="max-h-44 overflow-y-auto rounded-xl border border-gray-200 bg-white">
+              {filtered.map((m) => {
+                const s = scored?.find((x) => x.profile.id === m.id)
+                return (
+                  <li key={m.id} className="border-b border-gray-50 last:border-0">
+                    <label className="flex cursor-pointer items-center gap-2 px-3 py-2 active:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(m.id)}
+                        onChange={() => toggle(m.id)}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="font-medium text-gray-900">{m.name}</span>
+                        <span className="ml-1.5 text-xs text-gray-400">
+                          {AWARD_LEVEL_LABELS[m.award_level] ?? m.award_level}
+                        </span>
+                      </span>
+                      {s && selectedIds.has(m.id) && (
+                        <span className="shrink-0 text-sm font-bold tabular-nums text-green-800">
+                          {s.score.toFixed(1)}
+                        </span>
+                      )}
+                    </label>
+                  </li>
+                )
+              })}
             </ul>
           )}
           {!canDraw && selectedCount > 0 && (
             <p className="mt-1 text-xs text-amber-700">
               4명 단위로 선택해야 합니다. (현재 {selectedCount}명
-              {selectedCount % 4 !== 0 ? `, ${4 - (selectedCount % 4)}명 더 필요` : ''})
+              {selectedCount % 4 !== 0 ? `, ${4 - (selectedCount % 4)}명 더` : ''})
             </p>
           )}
         </div>
 
-        {scored && (
+        {scoredSelected.length > 0 && (
           <div>
-            <h3 className="mb-2 text-sm font-bold">개인점수 (높은 순)</h3>
-            <ul className="max-h-36 overflow-y-auto rounded-xl bg-gray-50 text-sm">
-              {scored.map((p, i) => (
-                <li
+            <h3 className="mb-2 text-sm font-bold">개인점수 (참석 · 높은 순)</h3>
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white text-sm">
+              <div className="grid grid-cols-[2rem_1fr_auto_auto] gap-1 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500">
+                <span>#</span>
+                <span>이름</span>
+                <span>입상</span>
+                <span>S</span>
+              </div>
+              {scoredSelected.map((p, i) => (
+                <div
                   key={p.profile.id}
-                  className="flex justify-between border-b border-white px-3 py-1.5 last:border-0"
+                  className="grid grid-cols-[2rem_1fr_auto_auto] items-center gap-1 border-t border-gray-50 px-3 py-1.5"
                 >
-                  <span>
-                    {i + 1}. {p.profile.name}
-                    <span className="ml-1 text-xs text-gray-400">
-                      입상{p.awardBase} · 경기{p.matchesPlayed}
-                    </span>
+                  <span className="text-gray-400">{i + 1}</span>
+                  <span className="truncate font-medium">{p.profile.name}</span>
+                  <span className="text-xs text-gray-400">{p.awardBase}</span>
+                  <span className="font-bold tabular-nums text-green-800">
+                    {p.score.toFixed(1)}
                   </span>
-                  <span className="font-bold tabular-nums">{p.score.toFixed(1)}</span>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         )}
 
@@ -261,22 +273,27 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
           <div className="flex flex-col gap-3">
             <h3 className="text-sm font-bold">편성 미리보기</h3>
             {result.matches.map((m) => (
-              <div key={m.label} className="rounded-xl border border-green-200 bg-green-50/50 p-3">
-                <p className="mb-1 text-sm font-bold text-green-900">{m.label}</p>
-                <p className="text-sm text-gray-800">
-                  A {formatTeamNames(m.split.teamA)}
-                  <span className="mx-1 text-gray-400">
-                    ({m.split.teamASum.toFixed(0)})
-                  </span>
-                  <span className="font-bold"> vs </span>
-                  B {formatTeamNames(m.split.teamB)}
-                  <span className="mx-1 text-gray-400">
-                    ({m.split.teamBSum.toFixed(0)})
-                  </span>
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  점수차 {m.split.scoreDiff.toFixed(1)} · 반복페널티 {m.split.repeatPenalty} ·
-                  비용 {m.split.cost.toFixed(1)}
+              <div key={m.label} className="rounded-xl border border-green-200 bg-green-50/60 p-3">
+                <p className="mb-2 text-sm font-extrabold text-green-900">{m.label}</p>
+                <div className="space-y-1 text-sm text-gray-800">
+                  <p>
+                    <span className="font-bold text-gray-500">A </span>
+                    {formatTeamNames(m.split.teamA, true)}
+                    <span className="ml-2 font-bold tabular-nums text-green-800">
+                      합 {m.split.teamASum.toFixed(0)}
+                    </span>
+                  </p>
+                  <p className="text-center text-xs font-bold text-gray-400">vs</p>
+                  <p>
+                    <span className="font-bold text-gray-500">B </span>
+                    {formatTeamNames(m.split.teamB, true)}
+                    <span className="ml-2 font-bold tabular-nums text-green-800">
+                      합 {m.split.teamBSum.toFixed(0)}
+                    </span>
+                  </p>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  팀 점수차 {m.split.scoreDiff.toFixed(1)} · 반복페널티 {m.split.repeatPenalty}
                 </p>
               </div>
             ))}
@@ -288,34 +305,35 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
-          <button
-            type="button"
-            disabled={scoring || drawing || !canDraw}
-            onClick={() => void handleScoreAndDraw()}
-            className="h-11 flex-1 rounded-xl bg-green-700 font-bold text-white disabled:opacity-50"
-          >
-            {scoring || drawing ? '추첨 중…' : result ? '다시 점수·추첨' : '점수 계산 후 추첨'}
-          </button>
-          {result && (
-            <>
+        <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
+          {!result ? (
+            <button
+              type="button"
+              disabled={busy || !canDraw}
+              onClick={() => void runDrawPipeline(null)}
+              className="h-12 w-full rounded-xl bg-green-700 font-bold text-white disabled:opacity-50"
+            >
+              {busy ? '추첨 중…' : '추첨하기 (점수 계산)'}
+            </button>
+          ) : (
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={drawing}
-                onClick={() => void handleRedraw()}
-                className="h-11 rounded-xl border border-gray-300 px-4 font-semibold text-gray-700 disabled:opacity-50"
+                disabled={busy || creating}
+                onClick={() => void runDrawPipeline(scored)}
+                className="h-12 flex-1 rounded-xl border-2 border-green-700 font-bold text-green-800 disabled:opacity-50"
               >
-                다시 뽑기
+                {busy ? '재생성 중…' : '재생성'}
               </button>
               <button
                 type="button"
-                disabled={creating}
+                disabled={creating || busy}
                 onClick={() => void handleCreate()}
-                className="h-11 flex-1 rounded-xl bg-amber-600 font-bold text-white disabled:opacity-50"
+                className="h-12 flex-1 rounded-xl bg-amber-600 font-bold text-white disabled:opacity-50"
               >
-                {creating ? '생성 중…' : '경기로 생성'}
+                {creating ? '생성 중…' : '경기 생성'}
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>

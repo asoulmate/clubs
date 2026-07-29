@@ -322,6 +322,9 @@ export function runDraw(options: RunDrawOptions): DrawResult {
   return { mode: 'level', matches, sitOut, totalCost: pick.cost }
 }
 
-export function formatTeamNames(team: [ScoredPlayer, ScoredPlayer]): string {
-  return `${team[0].profile.name} · ${team[1].profile.name}`
+export function formatTeamNames(team: [ScoredPlayer, ScoredPlayer], withScore = false): string {
+  if (!withScore) {
+    return `${team[0].profile.name} · ${team[1].profile.name}`
+  }
+  return `${team[0].profile.name}(${team[0].score.toFixed(0)}) · ${team[1].profile.name}(${team[1].score.toFixed(0)})`
 }

@@ -1,11 +1,18 @@
 import type { AwardLevel, PlayerStatsRow, Profile } from '../types/domain'
 
-/** 입상 기본점수 (우승/입상 세분화 전: 구간 중간값) */
+/** 입상 기본점수 (7단계) */
 export const AWARD_BASE_SCORE: Record<AwardLevel, number> = {
-  open: 95,
-  national_rookie: 75,
-  local_rookie: 55,
+  open_champion: 100,
+  open_place: 90,
+  national_rookie_champion: 80,
+  national_rookie_place: 70,
+  local_rookie_champion: 60,
+  local_rookie_place: 50,
   none: 40,
+  // 구버전 → 입상 점수
+  open: 90,
+  national_rookie: 70,
+  local_rookie: 50,
 }
 
 export interface ScoredPlayer {
@@ -29,7 +36,6 @@ function clamp(n: number, min: number, max: number): number {
 /**
  * MVP 개인점수
  * S = 입상기본 + r × (8W + 4G)
- * r = n/(n+10), W = 2×(승+2)/(n+4)-1, G = clamp(경기당득실/3, -1, 1)
  */
 export function computePlayerScore(
   profile: Profile,
