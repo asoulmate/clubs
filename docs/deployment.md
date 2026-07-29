@@ -30,6 +30,7 @@ SQL Editor에서 순서대로 실행:
 22. `supabase/migrations/31_create_match_lineup.sql` (균형 추첨 편성 경기 생성)
 23. `supabase/migrations/32_award_level_7.sql` (입상 7단계 enum 추가)
 24. `supabase/migrations/33_award_level_7_migrate.sql` (기존 등급 이관 + 가입 트리거)
+25. `supabase/migrations/34_tournament_entries.sql` (회원별 대회 참가 현황)
 21. `supabase/migrations/23_match_type_betting.sql` (단식/복식, 배팅 경기 지정·마감 시간, 배팅 500/1000, 집계 분리)
 22. `supabase/migrations/24_betting_lock_on_start.sql` (경기 시작·스코어 입력 후 배팅 변경 잠금)
 23. `supabase/migrations/25_absence_by_match_type.sql` (단식/복식 집계: 해당 유형 경기 있는 날만 무단결석 반영)

@@ -25,6 +25,9 @@ export type MatchStatus = 'open' | 'ready' | 'in_progress' | 'submitted' | 'conf
 /** 경기 유형: 단식(팀당 1명) / 복식(팀당 2명) */
 export type MatchType = 'singles' | 'doubles'
 
+/** 대회 참가 결과 (우승/준우승/3위/비입상) */
+export type TournamentPlacement = 'champion' | 'runner_up' | 'third' | 'none'
+
 /** 경기 유형별 필요 참가자 수 */
 export function requiredPlayerCount(matchType: MatchType): number {
   return matchType === 'singles' ? 2 : 4
@@ -305,3 +308,39 @@ export interface RecentBetRow {
   team_b_score: number | null
   created_at: string
 }
+
+/** 대회 참가 기록 */
+export interface TournamentEntry {
+  id: string
+  club_id: string
+  user_id: string
+  /** YYYY-MM-01 */
+  tournament_month: string
+  tournament_name: string
+  placement: TournamentPlacement
+  max_participants: number | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  profile?: Pick<Profile, 'id' | 'name' | 'award_level'> | null
+}
+
+export interface TournamentMonthlySummary {
+  month: string
+  entries_count: number
+  unique_players: number
+  champions: number
+  runner_ups: number
+  thirds: number
+  non_awards: number
+}
+
+export interface TournamentEntryInput {
+  tournamentMonth: string
+  tournamentName: string
+  placement: TournamentPlacement
+  maxParticipants: number | null
+  notes: string | null
+}
+

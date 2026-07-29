@@ -246,20 +246,32 @@ export function LineupDrawDialog({ date, onClose, onCreated }: LineupDrawDialogP
           <div>
             <h3 className="mb-2 text-sm font-bold">개인점수 (참석 · 높은 순)</h3>
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white text-sm">
-              <div className="grid grid-cols-[2rem_1fr_auto_auto] gap-1 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500">
+              <div className="grid grid-cols-[2rem_1fr_auto_auto_auto] gap-1 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500">
                 <span>#</span>
                 <span>이름</span>
                 <span>입상</span>
+                <span>폼</span>
                 <span>S</span>
               </div>
               {scoredSelected.map((p, i) => (
                 <div
                   key={p.profile.id}
-                  className="grid grid-cols-[2rem_1fr_auto_auto] items-center gap-1 border-t border-gray-50 px-3 py-1.5"
+                  className="grid grid-cols-[2rem_1fr_auto_auto_auto] items-center gap-1 border-t border-gray-50 px-3 py-1.5"
                 >
                   <span className="text-gray-400">{i + 1}</span>
                   <span className="truncate font-medium">{p.profile.name}</span>
                   <span className="text-xs text-gray-400">{p.awardBase}</span>
+                  <span
+                    className="text-xs tabular-nums text-gray-500"
+                    title={
+                      p.recentFormMatches > 0
+                        ? `최근 ${p.recentFormMatches}경기`
+                        : '최근 경기 없음'
+                    }
+                  >
+                    {p.form > 0 ? '+' : ''}
+                    {p.form.toFixed(2)}
+                  </span>
                   <span className="font-bold tabular-nums text-green-800">
                     {p.score.toFixed(1)}
                   </span>

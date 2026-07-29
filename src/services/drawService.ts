@@ -1,8 +1,13 @@
 import { supabase } from '../lib/supabase'
 import { fetchPlayerStats } from './statsService'
 import { searchActiveProfiles } from './profileService'
-import type { MatchWithPlayers, Profile } from '../types/domain'
-import { computePlayerScore, type ScoredPlayer } from '../utils/drawScore'
+import type { MatchWithPlayers, PlayerPosition, Profile } from '../types/domain'
+import {
+  computePlayerScore,
+  RECENT_FORM_MATCH_LIMIT,
+  type RecentFormStats,
+  type ScoredPlayer,
+} from '../utils/drawScore'
 import {
   runDraw,
   type DrawMode,
@@ -17,15 +22,82 @@ export async function fetchClubActiveMembers(clubId: string): Promise<Profile[]>
   return searchActiveProfiles('', clubId, 200)
 }
 
-/** 개인점수 일괄 계산 */
+/** 참석자별 최근 N경기 승/무/패 (확정 경기, 최신순) */
+export async function fetchRecentFormByUser(
+  clubId: string,
+  userIds: string[],
+  recentLimit = RECENT_FORM_MATCH_LIMIT,
+): Promise<Map<string, RecentFormStats>> {
+  const result = new Map<string, RecentFormStats>()
+  for (const id of userIds) {
+    result.set(id, { wins: 0, losses: 0, ties: 0, n: 0 })
+  }
+  if (userIds.length === 0) return result
+
+  const idSet = new Set(userIds)
+  const { data, error } = await supabase
+    .from('matches')
+    .select(
+      'team_a_score, team_b_score, players:match_players(user_id, position)',
+    )
+    .eq('club_id', clubId)
+    .eq('status', 'confirmed')
+    .not('team_a_score', 'is', null)
+    .not('team_b_score', 'is', null)
+    .order('match_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(80)
+
+  if (error) throw error
+
+  for (const raw of data ?? []) {
+    const m = raw as {
+      team_a_score: number
+      team_b_score: number
+      players: { user_id: string; position: PlayerPosition }[] | null
+    }
+    const players = m.players ?? []
+    if (players.length === 0) continue
+
+    let aWins = 0
+    if (m.team_a_score > m.team_b_score) aWins = 1
+    else if (m.team_a_score < m.team_b_score) aWins = -1
+
+    for (const p of players) {
+      if (!idSet.has(p.user_id)) continue
+      const form = result.get(p.user_id)!
+      if (form.n >= recentLimit) continue
+
+      const onA = positionTeam(p.position) === 'A'
+      if (aWins === 0) form.ties += 1
+      else if ((onA && aWins === 1) || (!onA && aWins === -1)) form.wins += 1
+      else form.losses += 1
+      form.n += 1
+    }
+
+    const allFilled = userIds.every((id) => (result.get(id)?.n ?? 0) >= recentLimit)
+    if (allFilled) break
+  }
+
+  return result
+}
+
+/** 개인점수 일괄 계산 (누적 성적 + 최근 폼) */
 export async function scoreAttendees(
   profiles: Profile[],
   clubId: string,
 ): Promise<ScoredPlayer[]> {
-  const stats = await fetchPlayerStats(ALL_TIME_RANGE.from, ALL_TIME_RANGE.to, clubId)
+  const [stats, formByUser] = await Promise.all([
+    fetchPlayerStats(ALL_TIME_RANGE.from, ALL_TIME_RANGE.to, clubId),
+    fetchRecentFormByUser(
+      clubId,
+      profiles.map((p) => p.id),
+      RECENT_FORM_MATCH_LIMIT,
+    ),
+  ])
   const byId = new Map(stats.map((s) => [s.user_id, s]))
   return profiles
-    .map((p) => computePlayerScore(p, byId.get(p.id)))
+    .map((p) => computePlayerScore(p, byId.get(p.id), formByUser.get(p.id)))
     .sort((a, b) => b.score - a.score)
 }
 

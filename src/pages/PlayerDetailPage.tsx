@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Spinner } from '../components/common/Spinner'
+import { TournamentEntriesSection } from '../components/players/TournamentEntriesSection'
 import { AWARD_LEVEL_ICONS, AWARD_LEVEL_LABELS } from '../constants/labels'
 import { fetchProfileById } from '../services/profileService'
 import {
@@ -180,6 +181,10 @@ export function PlayerDetailPage() {
         <StatCard label="참가율" value={`${participationRate.toFixed(0)}%`} />
         <StatCard label="무단 결석" value={`${stats?.absences ?? 0}회`} highlight />
       </div>
+
+      {clubId && userId ? (
+        <TournamentEntriesSection clubId={clubId} userId={userId} />
+      ) : null}
 
       {/* 배팅 기록 */}
       <section>

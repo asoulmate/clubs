@@ -3,11 +3,12 @@ import { ExportTab } from '../components/admin/ExportTab'
 import { LogsTab } from '../components/admin/LogsTab'
 import { MatchesTab } from '../components/admin/MatchesTab'
 import { SystemSettingsTab } from '../components/admin/SystemSettingsTab'
+import { TournamentsTab } from '../components/admin/TournamentsTab'
 import { UsersTab } from '../components/admin/UsersTab'
 import { useAuthStore } from '../stores/authStore'
 import { isAdmin, isAdminOrSub } from '../utils/permissions'
 
-type AdminTab = 'users' | 'matches' | 'logs' | 'settings' | 'export'
+type AdminTab = 'users' | 'matches' | 'tournaments' | 'logs' | 'settings' | 'export'
 
 /** 관리자 페이지 (관리자·서브 관리자 전용, 데이터 탭은 서브부터) */
 export function AdminPage() {
@@ -16,6 +17,7 @@ export function AdminPage() {
     const all: { value: AdminTab; label: string; visible: boolean }[] = [
       { value: 'users', label: '사용자', visible: isAdminOrSub(profile) },
       { value: 'matches', label: '경기', visible: isAdminOrSub(profile) },
+      { value: 'tournaments', label: '대회', visible: isAdminOrSub(profile) },
       { value: 'logs', label: '이력', visible: isAdminOrSub(profile) },
       { value: 'export', label: '데이터', visible: isAdminOrSub(profile) },
       { value: 'settings', label: '설정', visible: isAdmin(profile) },
@@ -48,6 +50,7 @@ export function AdminPage() {
 
       {activeTab === 'users' && <UsersTab />}
       {activeTab === 'matches' && <MatchesTab />}
+      {activeTab === 'tournaments' && <TournamentsTab />}
       {activeTab === 'logs' && <LogsTab />}
       {activeTab === 'export' && <ExportTab />}
       {activeTab === 'settings' && <SystemSettingsTab />}

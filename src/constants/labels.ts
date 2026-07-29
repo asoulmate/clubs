@@ -1,4 +1,11 @@
-import type { AwardLevel, MatchStatus, MatchType, PlayerPosition, UserRole } from '../types/domain'
+import type {
+  AwardLevel,
+  MatchStatus,
+  MatchType,
+  PlayerPosition,
+  TournamentPlacement,
+  UserRole,
+} from '../types/domain'
 
 /** 경기 유형 한글 라벨 */
 export const MATCH_TYPE_LABELS: Record<MatchType, string> = {
@@ -81,3 +88,22 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   admin_reset: '경기 초기화',
   admin_set_player: '참가자 강제 변경',
 }
+
+/** 대회 참가 결과 라벨 */
+export const TOURNAMENT_PLACEMENT_LABELS: Record<TournamentPlacement, string> = {
+  champion: '우승',
+  runner_up: '준우승',
+  third: '3위',
+  none: '비입상',
+}
+
+export const TOURNAMENT_PLACEMENT_OPTIONS: {
+  value: TournamentPlacement
+  label: string
+}[] = [
+  { value: 'champion', label: '우승' },
+  { value: 'runner_up', label: '준우승' },
+  { value: 'third', label: '3위' },
+  { value: 'none', label: '비입상' },
+]
+
