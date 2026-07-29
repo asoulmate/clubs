@@ -51,6 +51,19 @@ function normalizeMatch(m: MatchWithPlayers): MatchWithPlayers {
   }
 }
 
+/** 클럽에서 가장 이른 경기일 (없으면 null) */
+export async function fetchEarliestMatchDate(clubId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('match_date')
+    .eq('club_id', clubId)
+    .order('match_date', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return (data as { match_date: string } | null)?.match_date ?? null
+}
+
 /** 기간·클럽 경기 전체 (페이지네이션) */
 export async function fetchExportMatches(
   clubId: string,
@@ -245,156 +258,113 @@ function awardLabel(level: AwardLevel | undefined): string {
   return AWARD_LEVEL_LABELS[level] ?? level
 }
 
-/**
- * AI 분석용 확정 경기 flat CSV
- * (취소·미확정 제외, 한 행 = 한 경기)
- */
-export function buildConfirmedMatchesCsv(matches: MatchWithPlayers[]): Record<string, unknown>[] {
-  return matches
-    .filter((m) => m.status === 'confirmed')
-    .map((m) => {
-      const a1 = playerAt(m, 'A1')
-      const a2 = playerAt(m, 'A2')
-      const b1 = playerAt(m, 'B1')
-      const b2 = playerAt(m, 'B2')
-      const winner =
-        m.team_a_score !== null && m.team_b_score !== null
-          ? (winnerTeam(m.team_a_score, m.team_b_score) ?? 'TIE')
-          : ''
-      return {
-        match_id: m.id,
-        match_date: m.match_date,
-        match_type: m.match_type,
-        match_type_label: MATCH_TYPE_LABELS[m.match_type],
-        display_order: m.display_order,
-        is_betting: m.is_betting ? 1 : 0,
-        team_a_score: m.team_a_score,
-        team_b_score: m.team_b_score,
-        winner,
-        a1_user_id: a1?.user_id ?? '',
-        a1_name: a1?.profile?.name ?? '',
-        a1_award: awardLabel(a1?.profile?.award_level),
-        a1_is_guest: a1?.profile?.is_guest ? 1 : 0,
-        a2_user_id: a2?.user_id ?? '',
-        a2_name: a2?.profile?.name ?? '',
-        a2_award: awardLabel(a2?.profile?.award_level),
-        a2_is_guest: a2?.profile?.is_guest ? 1 : 0,
-        b1_user_id: b1?.user_id ?? '',
-        b1_name: b1?.profile?.name ?? '',
-        b1_award: awardLabel(b1?.profile?.award_level),
-        b1_is_guest: b1?.profile?.is_guest ? 1 : 0,
-        b2_user_id: b2?.user_id ?? '',
-        b2_name: b2?.profile?.name ?? '',
-        b2_award: awardLabel(b2?.profile?.award_level),
-        b2_is_guest: b2?.profile?.is_guest ? 1 : 0,
-        youtube_video_id: m.youtube_video_id ?? '',
-        confirmed_at: m.confirmed_at ?? '',
-        created_at: m.created_at,
-      }
-    })
+type ExportBet = Awaited<ReturnType<typeof fetchExportBets>>[number]
+type ExportAbsence = Awaited<ReturnType<typeof fetchExportAbsences>>[number]
+
+function slotFields(match: MatchWithPlayers, position: PlayerPosition, prefix: string) {
+  const p = playerAt(match, position)
+  return {
+    [`${prefix}_user_id`]: p?.user_id ?? '',
+    [`${prefix}_name`]: p?.profile?.name ?? '',
+    [`${prefix}_award`]: awardLabel(p?.profile?.award_level),
+    [`${prefix}_is_guest`]: p?.profile?.is_guest ? 1 : 0,
+    [`${prefix}_affiliation`]: p?.profile?.affiliation ?? '',
+  }
 }
 
-/** 확정 경기 참가자 long format (한 행 = 한 참가자) */
-export function buildMatchPlayersCsv(matches: MatchWithPlayers[]): Record<string, unknown>[] {
-  const rows: Record<string, unknown>[] = []
-  for (const m of matches.filter((x) => x.status === 'confirmed')) {
+/**
+ * 경기 통합 CSV (한 행 = 한 경기)
+ * - 상태·선수·점수·승패 + 해당 경기 배팅 요약
+ * - AI 분석 시 status=confirmed 로 필터하면 됨
+ */
+export function buildMatchesCsv(
+  matches: MatchWithPlayers[],
+  bets: ExportBet[] = [],
+): Record<string, unknown>[] {
+  const betsByMatch = new Map<string, ExportBet[]>()
+  for (const b of bets) {
+    const list = betsByMatch.get(b.match_id) ?? []
+    list.push(b)
+    betsByMatch.set(b.match_id, list)
+  }
+
+  return matches.map((m) => {
     const winner =
-      m.team_a_score !== null && m.team_b_score !== null
+      m.status === 'confirmed' && m.team_a_score !== null && m.team_b_score !== null
         ? (winnerTeam(m.team_a_score, m.team_b_score) ?? 'TIE')
         : ''
-    for (const p of m.players) {
-      const team = p.position.startsWith('A') ? 'A' : 'B'
-      rows.push({
-        match_id: m.id,
-        match_date: m.match_date,
-        match_type: m.match_type,
-        display_order: m.display_order,
-        position: p.position,
-        team,
-        user_id: p.user_id,
-        player_name: p.profile?.name ?? '',
-        award_level: awardLabel(p.profile?.award_level),
-        is_guest: p.profile?.is_guest ? 1 : 0,
-        affiliation: p.profile?.affiliation ?? '',
-        team_a_score: m.team_a_score,
-        team_b_score: m.team_b_score,
-        winner,
-        result:
-          winner === 'TIE' ? 'TIE' : winner === '' ? '' : winner === team ? 'WIN' : 'LOSS',
-      })
+    const matchBets = betsByMatch.get(m.id) ?? []
+    const betAmountSum = matchBets.reduce((s, b) => s + b.amount, 0)
+    const betsOnA = matchBets.filter((b) => b.predicted_team === 'A').length
+    const betsOnB = matchBets.filter((b) => b.predicted_team === 'B').length
+    const betDetail = matchBets
+      .map(
+        (b) =>
+          `${b.profile?.name ?? b.user_id}:${b.predicted_team}:${b.amount}:${b.result ?? 'open'}`,
+      )
+      .join('|')
+
+    return {
+      match_id: m.id,
+      match_date: m.match_date,
+      status: m.status,
+      status_label: MATCH_STATUS_LABELS[m.status],
+      match_type: m.match_type,
+      match_type_label: MATCH_TYPE_LABELS[m.match_type],
+      display_order: m.display_order,
+      is_betting: m.is_betting ? 1 : 0,
+      betting_deadline: m.betting_deadline ?? '',
+      player_count: m.players.length,
+      team_a_score: m.team_a_score ?? '',
+      team_b_score: m.team_b_score ?? '',
+      winner,
+      ...slotFields(m, 'A1', 'a1'),
+      ...slotFields(m, 'A2', 'a2'),
+      ...slotFields(m, 'B1', 'b1'),
+      ...slotFields(m, 'B2', 'b2'),
+      bet_count: matchBets.length,
+      bet_amount_sum: betAmountSum,
+      bets_on_a: betsOnA,
+      bets_on_b: betsOnB,
+      bet_detail: betDetail,
+      youtube_video_id: m.youtube_video_id ?? '',
+      confirmed_at: m.confirmed_at ?? '',
+      created_at: m.created_at,
     }
-  }
-  return rows
+  })
 }
 
-/** 전체 경기 메타 (상태 포함 — 분석 필터용 raw) */
-export function buildAllMatchesMetaCsv(matches: MatchWithPlayers[]): Record<string, unknown>[] {
-  return matches.map((m) => ({
-    match_id: m.id,
-    match_date: m.match_date,
-    status: m.status,
-    status_label: MATCH_STATUS_LABELS[m.status],
-    match_type: m.match_type,
-    is_betting: m.is_betting ? 1 : 0,
-    betting_deadline: m.betting_deadline ?? '',
-    display_order: m.display_order,
-    team_a_score: m.team_a_score ?? '',
-    team_b_score: m.team_b_score ?? '',
-    player_count: m.players.length,
-    youtube_video_id: m.youtube_video_id ?? '',
-    created_at: m.created_at,
-    confirmed_at: m.confirmed_at ?? '',
-  }))
-}
-
-export async function buildMembersCsv(clubId: string): Promise<Record<string, unknown>[]> {
+/**
+ * 멤버 통합 CSV (한 행 = 한 멤버)
+ * - 역할·입상 + 기간 내 무단결석 횟수·날짜 목록
+ */
+export async function buildMembersCsv(
+  clubId: string,
+  absences: ExportAbsence[] = [],
+): Promise<Record<string, unknown>[]> {
   const users = await fetchClubUsers(clubId)
-  return users.map((row) => ({
-    user_id: row.user_id,
-    name: row.profile.name,
-    award_level: awardLabel(row.profile.award_level),
-    club_role: row.role,
-    member_status: row.status,
-    is_active: row.profile.is_active ? 1 : 0,
-    is_guest: row.profile.is_guest ? 1 : 0,
-    affiliation: row.profile.affiliation ?? '',
-    created_at: row.profile.created_at,
-  }))
+  const absByUser = new Map<string, string[]>()
+  for (const a of absences) {
+    const list = absByUser.get(a.user_id) ?? []
+    list.push(a.absence_date)
+    absByUser.set(a.user_id, list)
+  }
+
+  return users.map((row) => {
+    const dates = (absByUser.get(row.user_id) ?? []).sort()
+    return {
+      user_id: row.user_id,
+      name: row.profile.name,
+      award_level: awardLabel(row.profile.award_level),
+      club_role: row.role,
+      member_status: row.status,
+      is_active: row.profile.is_active ? 1 : 0,
+      is_guest: row.profile.is_guest ? 1 : 0,
+      affiliation: row.profile.affiliation ?? '',
+      absence_count: dates.length,
+      absence_dates: dates.join('|'),
+      created_at: row.profile.created_at,
+    }
+  })
 }
 
-export function buildAbsencesCsv(
-  rows: Awaited<ReturnType<typeof fetchExportAbsences>>,
-): Record<string, unknown>[] {
-  return rows.map((r) => ({
-    absence_id: r.id,
-    absence_date: r.absence_date,
-    user_id: r.user_id,
-    player_name: r.profile?.name ?? '',
-    award_level: awardLabel(r.profile?.award_level),
-    is_guest: r.profile?.is_guest ? 1 : 0,
-    affiliation: r.profile?.affiliation ?? '',
-    registered_by: r.registered_by,
-    created_at: r.created_at,
-  }))
-}
-
-export function buildBetsCsv(
-  rows: Awaited<ReturnType<typeof fetchExportBets>>,
-): Record<string, unknown>[] {
-  return rows.map((r) => ({
-    bet_id: r.id,
-    match_id: r.match_id,
-    match_date: r.match?.match_date ?? '',
-    match_type: r.match?.match_type ?? '',
-    match_status: r.match?.status ?? '',
-    team_a_score: r.match?.team_a_score ?? '',
-    team_b_score: r.match?.team_b_score ?? '',
-    user_id: r.user_id,
-    player_name: r.profile?.name ?? '',
-    amount: r.amount,
-    predicted_team: r.predicted_team,
-    result: r.result ?? 'open',
-    settled_at: r.settled_at ?? '',
-    created_at: r.created_at,
-  }))
-}
