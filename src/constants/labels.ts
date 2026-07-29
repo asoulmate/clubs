@@ -35,15 +35,16 @@ export const AWARD_LEVEL_OPTIONS: { value: AwardLevel; label: string }[] = [
 /** 이름 오른쪽 표시용 입상 아이콘 (비입상은 빈 문자열) */
 export const AWARD_LEVEL_ICONS: Record<AwardLevel, string> = {
   open_champion: '🏆',
-  open_place: '🏅',
+  open_place: '🏆',
   national_rookie_champion: '⭐',
-  national_rookie_place: '✨',
+  national_rookie_place: '⭐',
   local_rookie_champion: '💫',
-  local_rookie_place: '🔹',
+  local_rookie_place: '💫',
   none: '',
-  open: '🏅',
-  national_rookie: '✨',
-  local_rookie: '🔹',
+  // 구버전 호환
+  open: '🏆',
+  national_rookie: '⭐',
+  local_rookie: '💫',
 }
 
 /** 사용자 역할 한글 라벨 */
