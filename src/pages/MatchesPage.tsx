@@ -4,6 +4,7 @@ import { EmptyState } from '../components/common/EmptyState'
 import { Spinner } from '../components/common/Spinner'
 import { AbsencesPanel } from '../components/match/AbsencesPanel'
 import { CreateMatchDialog } from '../components/match/CreateMatchDialog'
+import { LineupDrawDialog } from '../components/match/LineupDrawDialog'
 import { MatchCard } from '../components/match/MatchCard'
 import { useMatchesByDate } from '../hooks/useMatchesByDate'
 import { reorderMatches } from '../services/matchService'
@@ -37,6 +38,7 @@ export function MatchesPage() {
   const { matches, loading, error, refresh } = useMatchesByDate(date, clubId)
   const [ordered, setOrdered] = useState<MatchWithPlayers[]>([])
   const [createOpen, setCreateOpen] = useState(false)
+  const [drawOpen, setDrawOpen] = useState(false)
   const [syncingYoutube, setSyncingYoutube] = useState(false)
   const [reordering, setReordering] = useState(false)
   const profile = useAuthStore((s) => s.profile)
@@ -178,7 +180,16 @@ export function MatchesPage() {
         </div>
       )}
 
-      <div className="pb-safe fixed bottom-20 left-1/2 z-30 -translate-x-1/2 md:bottom-8">
+      <div className="pb-safe fixed bottom-20 left-1/2 z-30 flex -translate-x-1/2 gap-2 md:bottom-8">
+        {profile && (
+          <button
+            type="button"
+            onClick={() => setDrawOpen(true)}
+            className="flex h-13 items-center gap-1.5 rounded-full border-2 border-green-700 bg-white px-4 py-3 text-sm font-bold text-green-800 shadow-lg active:bg-green-50"
+          >
+            추첨 편성
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
@@ -195,6 +206,13 @@ export function MatchesPage() {
         <CreateMatchDialog
           date={date}
           onClose={() => setCreateOpen(false)}
+          onCreated={() => void refresh()}
+        />
+      )}
+      {drawOpen && (
+        <LineupDrawDialog
+          date={date}
+          onClose={() => setDrawOpen(false)}
           onCreated={() => void refresh()}
         />
       )}
