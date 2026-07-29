@@ -18,6 +18,7 @@ import type {
 } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 import {
+  canAdminUpdateScore,
   canCancelMatch,
   canConfirmScore,
   canDeleteMatch,
@@ -30,6 +31,7 @@ import { winnerTeam } from '../../utils/score'
 import { youtubeWatchUrl } from '../../services/youtubeService'
 import { MATCH_TYPE_LABELS } from '../../constants/labels'
 import { PlayerNameButton } from '../players/PlayerNameButton'
+import { AdminScoreDialog } from './AdminScoreDialog'
 import { BettingCountdown } from './BettingCountdown'
 import { MatchBettingDialog } from './MatchBettingDialog'
 import { RegisterSlotDialog } from './RegisterSlotDialog'
@@ -89,6 +91,7 @@ export function MatchCard({
   const showToast = useToastStore((s) => s.show)
   const [registerPosition, setRegisterPosition] = useState<PlayerPosition | null>(null)
   const [scoreOpen, setScoreOpen] = useState(false)
+  const [adminScoreOpen, setAdminScoreOpen] = useState(false)
   const [youtubeOpen, setYoutubeOpen] = useState(false)
   const [bettingOpen, setBettingOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -339,6 +342,17 @@ export function MatchCard({
             </button>
           )}
 
+          {match.status === 'confirmed' && canAdminUpdateScore(profile, match) && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setAdminScoreOpen(true)}
+              className="h-11 flex-1 rounded-xl border-2 border-green-700 font-bold text-green-700 active:bg-green-50 disabled:opacity-50"
+            >
+              스코어 수정
+            </button>
+          )}
+
           {canConfirmScore(profile, match) && (
             <button
               type="button"
@@ -433,6 +447,13 @@ export function MatchCard({
       )}
       {scoreOpen && (
         <ScoreDialog match={match} onClose={() => setScoreOpen(false)} onChanged={onChanged} />
+      )}
+      {adminScoreOpen && (
+        <AdminScoreDialog
+          match={match}
+          onClose={() => setAdminScoreOpen(false)}
+          onChanged={onChanged}
+        />
       )}
       {youtubeOpen && (
         <YoutubeLinkDialog

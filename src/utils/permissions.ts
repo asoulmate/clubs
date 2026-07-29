@@ -7,15 +7,17 @@ import { positionTeam, requiredPlayerCount } from '../types/domain'
 // 실제 권한 검증은 Supabase RPC와 RLS가 DB에서 수행한다.
 // ============================================================
 
-/** 관리자 또는 서브 관리자 여부 (현재 클럽 역할 기준. 플랫폼 슈퍼는 /platform 전용) */
+/** 관리자 또는 서브 관리자 여부 (클럽 역할 또는 플랫폼 슈퍼) */
 export function isAdminOrSub(profile: Profile | null): boolean {
   if (!profile) return false
+  if (profile.is_platform_admin) return true
   return profile.role === 'admin' || profile.role === 'sub_admin'
 }
 
-/** 메인 관리자 여부 (현재 클럽 역할 기준) */
+/** 메인 관리자 여부 (클럽 메인 관리자 또는 플랫폼 슈퍼) */
 export function isAdmin(profile: Profile | null): boolean {
   if (!profile) return false
+  if (profile.is_platform_admin) return true
   return profile.role === 'admin'
 }
 
@@ -37,6 +39,16 @@ export function canSubmitScore(profile: Profile | null, match: MatchWithPlayers)
   // 단식 2명 / 복식 4명이 모두 편성되어야 입력 가능
   if (match.players.length < requiredPlayerCount(match.match_type)) return false
   return isParticipant(profile.id, match) || isAdminOrSub(profile)
+}
+
+/**
+ * 확정 포함 스코어 강제 수정 (관리자/서브/플랫폼 슈퍼)
+ * 일반 제출(submit_score)이 아니라 admin_update_score 경로
+ */
+export function canAdminUpdateScore(profile: Profile | null, match: MatchWithPlayers): boolean {
+  if (!profile || match.status === 'canceled') return false
+  if (match.players.length < requiredPlayerCount(match.match_type)) return false
+  return isAdminOrSub(profile)
 }
 
 /** 최종 확인 버튼을 보여줄 수 있는지 (확정 대기 + 상대 팀 참가자) */
