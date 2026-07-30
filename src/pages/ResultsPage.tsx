@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DateNavigator } from '../components/common/DateNavigator'
 import { Spinner } from '../components/common/Spinner'
+import { FineSummary } from '../components/stats/FineSummary'
 import { RankingTable } from '../components/stats/RankingTable'
 import { MATCH_TYPE_LABELS } from '../constants/labels'
+import { fetchMatchFineRecords } from '../services/fineService'
 import { fetchPlayerStats } from '../services/statsService'
 import { useClubStore } from '../stores/clubStore'
 import { useSettingsStore } from '../stores/settingsStore'
-import type { MatchType, PlayerStatsRow } from '../types/domain'
+import type { MatchFineRecord, MatchType, PlayerStatsRow } from '../types/domain'
 import { addDaysToDateString, todayKst } from '../utils/kst'
 import { getPeriodRange, PERIOD_OPTIONS, type PeriodType } from '../utils/period'
 import { buildRanking } from '../utils/ranking'
@@ -16,13 +18,15 @@ import { buildRanking } from '../utils/ranking'
  */
 export function ResultsPage() {
   const settings = useSettingsStore((s) => s.settings)
-  const clubId = useClubStore((s) => s.club?.id)
+  const club = useClubStore((s) => s.club)
+  const clubId = club?.id
   const [period, setPeriod] = useState<PeriodType>('daily')
   const [matchType, setMatchType] = useState<MatchType>('doubles')
   const [anchorDate, setAnchorDate] = useState(() => todayKst())
   const [customFrom, setCustomFrom] = useState(() => addDaysToDateString(todayKst(), -7))
   const [customTo, setCustomTo] = useState(() => todayKst())
   const [rows, setRows] = useState<PlayerStatsRow[]>([])
+  const [fineRows, setFineRows] = useState<MatchFineRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,6 +38,7 @@ export function ResultsPage() {
   useEffect(() => {
     if (!clubId) {
       setRows([])
+      setFineRows([])
       setLoading(false)
       return
     }
@@ -41,9 +46,16 @@ export function ResultsPage() {
     setLoading(true)
     setError(null)
 
-    void fetchPlayerStats(range.from, range.to, clubId, matchType)
-      .then((data) => {
-        if (!stale) setRows(data)
+    void Promise.all([
+      fetchPlayerStats(range.from, range.to, clubId, matchType),
+      settings.fine_enabled
+        ? fetchMatchFineRecords(range.from, range.to, clubId, { matchType })
+        : Promise.resolve([]),
+    ])
+      .then(([data, fines]) => {
+        if (stale) return
+        setRows(data)
+        setFineRows(fines)
       })
       .catch(() => {
         if (!stale) setError('집계 데이터를 불러오지 못했습니다. 네트워크 상태를 확인해주세요.')
@@ -55,7 +67,7 @@ export function ResultsPage() {
     return () => {
       stale = true
     }
-  }, [range.from, range.to, clubId, matchType])
+  }, [range.from, range.to, clubId, matchType, settings.fine_enabled])
 
   const ranked = useMemo(
     () => buildRanking(rows, settings.min_matches_for_ranking),
@@ -145,6 +157,10 @@ export function ResultsPage() {
             </p>
           )}
         </>
+      )}
+
+      {!loading && !error && settings.fine_enabled && club && (
+        <FineSummary records={fineRows} rangeLabel={range.label} clubSlug={club.slug} />
       )}
     </div>
   )

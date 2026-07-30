@@ -157,6 +157,8 @@ export type ConfirmMode = 'double' | 'single'
 export interface AppSettings {
   confirm_mode: ConfirmMode
   allow_tie: boolean
+  /** 확정 경기 패자 벌금 집계 표시 */
+  fine_enabled: boolean
   score_max: number
   min_matches_for_ranking: number
   allow_proxy_registration: boolean
@@ -173,6 +175,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   confirm_mode: 'double',
   allow_tie: false,
+  fine_enabled: true,
   score_max: 99,
   min_matches_for_ranking: 0,
   allow_proxy_registration: true,
@@ -212,6 +215,20 @@ export interface RankedPlayerStats extends PlayerStatsRow {
   win_rate: number
   point_diff: number
   participation_rate: number
+}
+
+/** 확정 경기 결과에서 자동 계산된 개인 벌금 행 */
+export interface MatchFineRecord {
+  match_id: string
+  match_date: string
+  match_type: MatchType
+  user_id: string
+  name: string
+  award_level: AwardLevel
+  team_a_score: number
+  team_b_score: number
+  amount: number
+  fine_reason: '일반 패배' | '6:0 패배' | '6:5 패배'
 }
 
 /** get_partner_stats 반환 행 */

@@ -38,9 +38,19 @@ export interface ScoredPlayer {
   ties: number
   pointsFor: number
   pointsAgainst: number
+  /** 베이지안 보정 승률 */
+  adjustedWinRate: number
+  /** 승률 지수 W ∈ [-1, 1] */
+  winFactor: number
+  /** 경기당 평균 득실 */
+  pointDiffPerMatch: number
+  /** 득실 지수 G ∈ [-1, 1] */
+  pointFactor: number
   /** 단기 폼 F ∈ [-1, 1] (경기 없으면 0) */
   form: number
   recentFormMatches: number
+  /** 기본점수에 더해진 성적 보정값 */
+  performanceAdjustment: number
 }
 
 function clamp(n: number, min: number, max: number): number {
@@ -99,7 +109,12 @@ export function computePlayerScore(
     ties,
     pointsFor,
     pointsAgainst,
+    adjustedWinRate: Math.round(adjWinRate * 1000) / 1000,
+    winFactor: Math.round(W * 1000) / 1000,
+    pointDiffPerMatch: Math.round(perMatchDiff * 1000) / 1000,
+    pointFactor: Math.round(G * 1000) / 1000,
     form: Math.round(F * 1000) / 1000,
     recentFormMatches: Math.max(0, Number(recentForm?.n ?? 0)),
+    performanceAdjustment: Math.round((score - awardBase) * 10) / 10,
   }
 }

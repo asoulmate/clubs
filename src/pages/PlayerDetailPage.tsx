@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Spinner } from '../components/common/Spinner'
+import {
+  PlayerFineSection,
+  PlayerScoreSection,
+} from '../components/players/PlayerScoreAndFine'
 import { TournamentEntriesSection } from '../components/players/TournamentEntriesSection'
 import { AWARD_LEVEL_ICONS, AWARD_LEVEL_LABELS } from '../constants/labels'
+import { fetchRecentFormByUser } from '../services/drawService'
+import { fetchMatchFineRecords } from '../services/fineService'
 import { fetchProfileById } from '../services/profileService'
 import {
   fetchMonthlyTrend,
@@ -13,8 +19,10 @@ import {
 } from '../services/statsService'
 import { fetchPlayerBetStats, fetchPlayerRecentBets } from '../services/betService'
 import { useClubStore } from '../stores/clubStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import type {
   AwardLevel,
+  MatchFineRecord,
   MonthlyTrendRow,
   OpponentStatsRow,
   PartnerStatsRow,
@@ -24,6 +32,7 @@ import type {
   RecentBetRow,
   RecentMatchRow,
 } from '../types/domain'
+import { computePlayerScore, type ScoredPlayer } from '../utils/drawScore'
 import { formatDateKorean } from '../utils/kst'
 import { ALL_TIME_RANGE } from '../utils/period'
 import { calcParticipationRate, calcWinRate } from '../utils/ranking'
@@ -80,6 +89,7 @@ const RESULT_STYLES = {
 export function PlayerDetailPage() {
   const { userId } = useParams<{ userId: string }>()
   const clubId = useClubStore((s) => s.club?.id)
+  const fineEnabled = useSettingsStore((s) => s.settings.fine_enabled)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [stats, setStats] = useState<PlayerStatsRow | null>(null)
   const [partners, setPartners] = useState<PartnerStatsRow[]>([])
@@ -88,6 +98,8 @@ export function PlayerDetailPage() {
   const [recent, setRecent] = useState<RecentMatchRow[]>([])
   const [betStats, setBetStats] = useState<PlayerBetStats | null>(null)
   const [recentBets, setRecentBets] = useState<RecentBetRow[]>([])
+  const [fineRecords, setFineRecords] = useState<MatchFineRecord[]>([])
+  const [playerScore, setPlayerScore] = useState<ScoredPlayer | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -106,8 +118,12 @@ export function PlayerDetailPage() {
       fetchRecentMatches(userId, clubId, 10),
       fetchPlayerBetStats(userId, clubId),
       fetchPlayerRecentBets(userId, clubId, 15),
+      fetchRecentFormByUser(clubId, [userId]),
+      fineEnabled
+        ? fetchMatchFineRecords(ALL_TIME_RANGE.from, ALL_TIME_RANGE.to, clubId, { userId })
+        : Promise.resolve([]),
     ])
-      .then(([p, s, pt, op, tr, rc, bs, rb]) => {
+      .then(([p, s, pt, op, tr, rc, bs, rb, formByUser, fines]) => {
         if (stale) return
         setProfile(p)
         setStats(s)
@@ -117,6 +133,8 @@ export function PlayerDetailPage() {
         setRecent(rc)
         setBetStats(bs)
         setRecentBets(rb)
+        setFineRecords(fines)
+        setPlayerScore(p ? computePlayerScore(p, s, formByUser.get(userId)) : null)
       })
       .catch(() => {
         if (!stale) setError('기록을 불러오지 못했습니다. 네트워크 상태를 확인해주세요.')
@@ -128,7 +146,7 @@ export function PlayerDetailPage() {
     return () => {
       stale = true
     }
-  }, [userId, clubId])
+  }, [userId, clubId, fineEnabled])
 
   if (loading) {
     return (
@@ -181,6 +199,10 @@ export function PlayerDetailPage() {
         <StatCard label="참가율" value={`${participationRate.toFixed(0)}%`} />
         <StatCard label="무단 결석" value={`${stats?.absences ?? 0}회`} highlight />
       </div>
+
+      {playerScore && <PlayerScoreSection scored={playerScore} />}
+
+      {fineEnabled && <PlayerFineSection records={fineRecords} />}
 
       {clubId && userId ? (
         <TournamentEntriesSection clubId={clubId} userId={userId} />

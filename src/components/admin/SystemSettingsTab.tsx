@@ -81,6 +81,24 @@ export function SystemSettingsTab() {
 
         <div className={rowClass}>
           <div>
+            <p className="font-semibold">패자 벌금 집계</p>
+            <p className="text-xs text-gray-400">
+              일반 패배 2,500원 · 6:0 또는 6:5 패배 3,500원 (패자 1인 기준)
+            </p>
+          </div>
+          <select
+            value={settings.fine_enabled ? 'true' : 'false'}
+            disabled={readOnly || saving}
+            onChange={(e) => void save('fine_enabled', e.target.value === 'true')}
+            className={selectClass}
+          >
+            <option value="true">사용</option>
+            <option value="false">사용 안 함</option>
+          </select>
+        </div>
+
+        <div className={rowClass}>
+          <div>
             <p className="font-semibold">최대 입력 점수</p>
             <p className="text-xs text-gray-400">6게임제·타이브레이크·시간제 등 점수제에 맞게 조정</p>
           </div>
