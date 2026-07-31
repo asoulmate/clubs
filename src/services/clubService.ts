@@ -31,12 +31,14 @@ export async function platformCreateClub(input: {
   slug: string
   youtube_enabled?: boolean
   absence_enabled?: boolean
+  fine_enabled?: boolean
 }): Promise<Club> {
   const { data, error } = await supabase.rpc('platform_create_club', {
     p_name: input.name,
     p_slug: input.slug,
     p_youtube_enabled: input.youtube_enabled ?? true,
     p_absence_enabled: input.absence_enabled ?? true,
+    p_fine_enabled: input.fine_enabled ?? true,
   })
   if (error) throw error
   return data as Club
@@ -52,13 +54,19 @@ export async function platformDeleteClub(clubId: string): Promise<void> {
 
 export async function platformUpdateClub(
   clubId: string,
-  updates: { name?: string; youtube_enabled?: boolean; absence_enabled?: boolean },
+  updates: {
+    name?: string
+    youtube_enabled?: boolean
+    absence_enabled?: boolean
+    fine_enabled?: boolean
+  },
 ): Promise<Club> {
   const { data, error } = await supabase.rpc('platform_update_club', {
     p_club_id: clubId,
     p_name: updates.name ?? null,
     p_youtube_enabled: updates.youtube_enabled ?? null,
     p_absence_enabled: updates.absence_enabled ?? null,
+    p_fine_enabled: updates.fine_enabled ?? null,
   })
   if (error) throw error
   return data as Club
@@ -66,12 +74,17 @@ export async function platformUpdateClub(
 
 export async function updateClubFeatureFlags(
   clubId: string,
-  updates: { youtube_enabled?: boolean; absence_enabled?: boolean },
+  updates: {
+    youtube_enabled?: boolean
+    absence_enabled?: boolean
+    fine_enabled?: boolean
+  },
 ): Promise<Club> {
   const { data, error } = await supabase.rpc('update_club_feature_flags', {
     p_club_id: clubId,
     p_youtube_enabled: updates.youtube_enabled ?? null,
     p_absence_enabled: updates.absence_enabled ?? null,
+    p_fine_enabled: updates.fine_enabled ?? null,
   })
   if (error) throw error
   return data as Club

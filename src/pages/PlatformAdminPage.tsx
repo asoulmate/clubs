@@ -63,7 +63,7 @@ export function PlatformAdminPage() {
 
   const toggleFlag = async (
     club: Club,
-    key: 'youtube_enabled' | 'absence_enabled',
+    key: 'youtube_enabled' | 'absence_enabled' | 'fine_enabled',
     value: boolean,
   ) => {
     try {
@@ -162,6 +162,15 @@ export function PlatformAdminPage() {
                     onChange={(e) => void toggleFlag(club, 'absence_enabled', e.target.checked)}
                   />
                   무단결석
+                </label>
+                <label className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={club.fine_enabled}
+                    disabled={deletingClubId === club.id}
+                    onChange={(e) => void toggleFlag(club, 'fine_enabled', e.target.checked)}
+                  />
+                  벌금
                 </label>
                 <button
                   type="button"

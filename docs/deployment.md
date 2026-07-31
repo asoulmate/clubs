@@ -33,6 +33,7 @@ SQL Editor에서 순서대로 실행:
 25. `supabase/migrations/34_tournament_entries.sql` (회원별 대회 참가 현황)
 26. `supabase/migrations/35_club_delete_and_order.sql` (클럽 생성순 정렬 + 플랫폼 클럽 삭제)
 27. `supabase/migrations/36_match_fines.sql` (클럽별 패자 벌금 설정·기간 집계)
+28. `supabase/migrations/37_club_fine_flag.sql` (패자 벌금을 clubs 기능 플래그로 이동)
 21. `supabase/migrations/23_match_type_betting.sql` (단식/복식, 배팅 경기 지정·마감 시간, 배팅 500/1000, 집계 분리)
 22. `supabase/migrations/24_betting_lock_on_start.sql` (경기 시작·스코어 입력 후 배팅 변경 잠금)
 23. `supabase/migrations/25_absence_by_match_type.sql` (단식/복식 집계: 해당 유형 경기 있는 날만 무단결석 반영)

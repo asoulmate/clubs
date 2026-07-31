@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { updateClubFeatureFlags } from '../../services/clubService'
 import { updateClubSetting } from '../../services/clubSettingsService'
 import { useAuthStore } from '../../stores/authStore'
 import { useClubStore } from '../../stores/clubStore'
@@ -8,13 +9,16 @@ import type { AppSettings, ConfirmMode, MatchType } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 import { isAdmin } from '../../utils/permissions'
 
-/** 관리자 - 시스템 설정 탭 (클럽 설정) */
+/** 관리자 - 시스템 설정 탭 (클럽 기능 플래그 + 운영 설정) */
 export function SystemSettingsTab() {
   const myProfile = useAuthStore((s) => s.profile)
-  const clubId = useClubStore((s) => s.club?.id)
+  const club = useClubStore((s) => s.club)
+  const clubId = club?.id
+  const enterClubBySlug = useClubStore((s) => s.enterClubBySlug)
   const { settings, load } = useSettingsStore()
   const showToast = useToastStore((s) => s.show)
   const [saving, setSaving] = useState(false)
+  const [flagSaving, setFlagSaving] = useState(false)
 
   const readOnly = !isAdmin(myProfile)
 
@@ -35,7 +39,25 @@ export function SystemSettingsTab() {
     }
   }
 
-  const rowClass = 'flex items-center justify-between gap-3 border-b border-gray-50 px-4 py-4 last:border-b-0'
+  const toggleFeature = async (
+    key: 'youtube_enabled' | 'absence_enabled' | 'fine_enabled',
+    value: boolean,
+  ) => {
+    if (!club || readOnly) return
+    setFlagSaving(true)
+    try {
+      await updateClubFeatureFlags(club.id, { [key]: value })
+      await enterClubBySlug(club.slug)
+      showToast('기능 설정이 저장되었습니다.', 'success')
+    } catch (err) {
+      showToast(toErrorMessage(err), 'error')
+    } finally {
+      setFlagSaving(false)
+    }
+  }
+
+  const rowClass =
+    'flex items-center justify-between gap-3 border-b border-gray-50 px-4 py-4 last:border-b-0'
   const selectClass = 'h-11 rounded-lg border border-gray-300 px-2 text-sm disabled:bg-gray-100'
 
   return (
@@ -46,7 +68,66 @@ export function SystemSettingsTab() {
         </p>
       )}
 
+      {club && (
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="border-b border-gray-100 px-4 py-3">
+            <p className="text-sm font-bold text-gray-800">클럽 기능</p>
+            <p className="text-xs text-gray-400">유튜브·무단결석·벌금 표시를 켜고 끕니다</p>
+          </div>
+          <div className={rowClass}>
+            <div>
+              <p className="font-semibold">유튜브 연동</p>
+              <p className="text-xs text-gray-400">이 클럽에서 유튜브 매칭 UI 표시</p>
+            </div>
+            <select
+              value={club.youtube_enabled ? 'true' : 'false'}
+              disabled={readOnly || flagSaving}
+              onChange={(e) => void toggleFeature('youtube_enabled', e.target.value === 'true')}
+              className={selectClass}
+            >
+              <option value="true">사용</option>
+              <option value="false">숨김</option>
+            </select>
+          </div>
+          <div className={rowClass}>
+            <div>
+              <p className="font-semibold">무단 결석</p>
+              <p className="text-xs text-gray-400">이 클럽에서 무단 결석 패널 표시</p>
+            </div>
+            <select
+              value={club.absence_enabled ? 'true' : 'false'}
+              disabled={readOnly || flagSaving}
+              onChange={(e) => void toggleFeature('absence_enabled', e.target.value === 'true')}
+              className={selectClass}
+            >
+              <option value="true">사용</option>
+              <option value="false">숨김</option>
+            </select>
+          </div>
+          <div className={rowClass}>
+            <div>
+              <p className="font-semibold">패자 벌금 집계</p>
+              <p className="text-xs text-gray-400">
+                일반 패배 2,500원 · 6:0/6:5 패배 3,500원 (결과 집계·내 기록)
+              </p>
+            </div>
+            <select
+              value={club.fine_enabled ? 'true' : 'false'}
+              disabled={readOnly || flagSaving}
+              onChange={(e) => void toggleFeature('fine_enabled', e.target.value === 'true')}
+              className={selectClass}
+            >
+              <option value="true">사용</option>
+              <option value="false">숨김</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+        <div className="border-b border-gray-100 px-4 py-3">
+          <p className="text-sm font-bold text-gray-800">운영 설정</p>
+        </div>
         <div className={rowClass}>
           <div>
             <p className="font-semibold">스코어 확정 방식</p>
@@ -76,24 +157,6 @@ export function SystemSettingsTab() {
           >
             <option value="false">허용 안 함</option>
             <option value="true">허용</option>
-          </select>
-        </div>
-
-        <div className={rowClass}>
-          <div>
-            <p className="font-semibold">패자 벌금 집계</p>
-            <p className="text-xs text-gray-400">
-              일반 패배 2,500원 · 6:0 또는 6:5 패배 3,500원 (패자 1인 기준)
-            </p>
-          </div>
-          <select
-            value={settings.fine_enabled ? 'true' : 'false'}
-            disabled={readOnly || saving}
-            onChange={(e) => void save('fine_enabled', e.target.value === 'true')}
-            className={selectClass}
-          >
-            <option value="true">사용</option>
-            <option value="false">사용 안 함</option>
           </select>
         </div>
 

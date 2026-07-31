@@ -73,6 +73,8 @@ export interface Club {
   slug: string
   youtube_enabled: boolean
   absence_enabled: boolean
+  /** 패자 벌금 집계 표시 */
+  fine_enabled: boolean
   created_at: string
   updated_at: string
 }
@@ -87,6 +89,7 @@ export interface ClubMembership {
   status: ClubMemberStatus
   youtube_enabled: boolean
   absence_enabled: boolean
+  fine_enabled: boolean
 }
 
 export interface Match {
@@ -157,8 +160,6 @@ export type ConfirmMode = 'double' | 'single'
 export interface AppSettings {
   confirm_mode: ConfirmMode
   allow_tie: boolean
-  /** 확정 경기 패자 벌금 집계 표시 */
-  fine_enabled: boolean
   score_max: number
   min_matches_for_ranking: number
   allow_proxy_registration: boolean
@@ -175,7 +176,6 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   confirm_mode: 'double',
   allow_tie: false,
-  fine_enabled: true,
   score_max: 99,
   min_matches_for_ranking: 0,
   allow_proxy_registration: true,

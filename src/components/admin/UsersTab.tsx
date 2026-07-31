@@ -11,7 +11,6 @@ import {
 import {
   approveClubMember,
   setClubMemberRole,
-  updateClubFeatureFlags,
 } from '../../services/clubService'
 import { useAuthStore } from '../../stores/authStore'
 import { useClubStore } from '../../stores/clubStore'
@@ -143,13 +142,11 @@ function AdminEditUserDialog({
 export function UsersTab() {
   const myProfile = useAuthStore((s) => s.profile)
   const club = useClubStore((s) => s.club)
-  const enterClubBySlug = useClubStore((s) => s.enterClubBySlug)
   const showToast = useToastStore((s) => s.show)
   const [search, setSearch] = useState('')
   const [users, setUsers] = useState<ClubUserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Profile | null>(null)
-  const [flagSaving, setFlagSaving] = useState(false)
   const debouncedSearch = useDebounce(search, 300)
 
   const canChangeRole = isAdmin(myProfile)
@@ -263,57 +260,8 @@ export function UsersTab() {
     }
   }
 
-  const toggleFeature = async (key: 'youtube_enabled' | 'absence_enabled', value: boolean) => {
-    if (!club || !isAdmin(myProfile)) return
-    setFlagSaving(true)
-    try {
-      await updateClubFeatureFlags(club.id, { [key]: value })
-      await enterClubBySlug(club.slug)
-      showToast('기능 설정이 저장되었습니다.', 'success')
-    } catch (err) {
-      showToast(toErrorMessage(err), 'error')
-    } finally {
-      setFlagSaving(false)
-    }
-  }
-
   return (
     <div className="flex flex-col gap-3">
-      {club && isAdmin(myProfile) && (
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-gray-50 px-4 py-3">
-            <div>
-              <p className="font-semibold">유튜브 연동</p>
-              <p className="text-xs text-gray-400">이 클럽에서 유튜브 매칭 UI 표시</p>
-            </div>
-            <select
-              value={club.youtube_enabled ? 'true' : 'false'}
-              disabled={flagSaving}
-              onChange={(e) => void toggleFeature('youtube_enabled', e.target.value === 'true')}
-              className="h-10 rounded-lg border border-gray-300 px-2 text-sm"
-            >
-              <option value="true">사용</option>
-              <option value="false">숨김</option>
-            </select>
-          </div>
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <div>
-              <p className="font-semibold">무단 결석</p>
-              <p className="text-xs text-gray-400">이 클럽에서 무단 결석 패널 표시</p>
-            </div>
-            <select
-              value={club.absence_enabled ? 'true' : 'false'}
-              disabled={flagSaving}
-              onChange={(e) => void toggleFeature('absence_enabled', e.target.value === 'true')}
-              className="h-10 rounded-lg border border-gray-300 px-2 text-sm"
-            >
-              <option value="true">사용</option>
-              <option value="false">숨김</option>
-            </select>
-          </div>
-        </div>
-      )}
-
       <input
         type="search"
         value={search}

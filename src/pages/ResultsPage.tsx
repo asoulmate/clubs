@@ -20,6 +20,7 @@ export function ResultsPage() {
   const settings = useSettingsStore((s) => s.settings)
   const club = useClubStore((s) => s.club)
   const clubId = club?.id
+  const fineEnabled = club?.fine_enabled ?? false
   const [period, setPeriod] = useState<PeriodType>('daily')
   const [matchType, setMatchType] = useState<MatchType>('doubles')
   const [anchorDate, setAnchorDate] = useState(() => todayKst())
@@ -48,7 +49,7 @@ export function ResultsPage() {
 
     void Promise.all([
       fetchPlayerStats(range.from, range.to, clubId, matchType),
-      settings.fine_enabled
+      fineEnabled
         ? fetchMatchFineRecords(range.from, range.to, clubId, { matchType })
         : Promise.resolve([]),
     ])
@@ -67,7 +68,7 @@ export function ResultsPage() {
     return () => {
       stale = true
     }
-  }, [range.from, range.to, clubId, matchType, settings.fine_enabled])
+  }, [range.from, range.to, clubId, matchType, fineEnabled])
 
   const ranked = useMemo(
     () => buildRanking(rows, settings.min_matches_for_ranking),
@@ -159,7 +160,7 @@ export function ResultsPage() {
         </>
       )}
 
-      {!loading && !error && settings.fine_enabled && club && (
+      {!loading && !error && fineEnabled && club && (
         <FineSummary records={fineRows} rangeLabel={range.label} clubSlug={club.slug} />
       )}
     </div>

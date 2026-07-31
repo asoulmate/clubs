@@ -19,7 +19,6 @@ import {
 } from '../services/statsService'
 import { fetchPlayerBetStats, fetchPlayerRecentBets } from '../services/betService'
 import { useClubStore } from '../stores/clubStore'
-import { useSettingsStore } from '../stores/settingsStore'
 import type {
   AwardLevel,
   MatchFineRecord,
@@ -89,7 +88,7 @@ const RESULT_STYLES = {
 export function PlayerDetailPage() {
   const { userId } = useParams<{ userId: string }>()
   const clubId = useClubStore((s) => s.club?.id)
-  const fineEnabled = useSettingsStore((s) => s.settings.fine_enabled)
+  const fineEnabled = useClubStore((s) => s.club?.fine_enabled ?? false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [stats, setStats] = useState<PlayerStatsRow | null>(null)
   const [partners, setPartners] = useState<PartnerStatsRow[]>([])
@@ -208,76 +207,6 @@ export function PlayerDetailPage() {
         <TournamentEntriesSection clubId={clubId} userId={userId} />
       ) : null}
 
-      {/* 배팅 기록 */}
-      <section>
-        <h2 className="mb-2 text-lg font-bold">배팅 기록</h2>
-        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          <StatCard label="배팅 승(적중)" value={`${betStats?.bets_won ?? 0}`} />
-          <StatCard label="배팅 패(미적중)" value={`${betStats?.bets_lost ?? 0}`} />
-          <StatCard
-            label="적중률"
-            value={(() => {
-              const won = betStats?.bets_won ?? 0
-              const lost = betStats?.bets_lost ?? 0
-              const decided = won + lost
-              return decided === 0 ? '-' : `${((won / decided) * 100).toFixed(0)}%`
-            })()}
-          />
-          <StatCard
-            label="적중 금액"
-            value={`${(betStats?.amount_won ?? 0).toLocaleString('ko-KR')}원`}
-          />
-          <StatCard
-            label="미적중 금액"
-            value={`${(betStats?.amount_lost ?? 0).toLocaleString('ko-KR')}원`}
-          />
-        </div>
-        {(betStats?.bets_open ?? 0) > 0 && (
-          <p className="mb-2 text-xs text-gray-500">진행 중 배팅 {betStats?.bets_open}건</p>
-        )}
-        {recentBets.length === 0 ? (
-          <p className="rounded-xl bg-white py-6 text-center text-sm text-gray-500 shadow-sm">
-            아직 배팅 기록이 없습니다.
-          </p>
-        ) : (
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-            {recentBets.map((b) => {
-              const resultLabel =
-                b.result === 'win' ? '적중' : b.result === 'loss' ? '미적중' : b.result === 'push' ? '무효' : '대기'
-              const resultStyle =
-                b.result === 'win'
-                  ? 'bg-green-100 text-green-800'
-                  : b.result === 'loss'
-                    ? 'bg-red-100 text-red-700'
-                    : b.result === 'push'
-                      ? 'bg-gray-100 text-gray-600'
-                      : 'bg-amber-100 text-amber-800'
-              return (
-                <div
-                  key={b.bet_id}
-                  className="flex items-center justify-between border-b border-gray-50 px-4 py-3 last:border-b-0"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {formatDateKorean(b.match_date)} · {b.predicted_team}팀 승
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {b.amount.toLocaleString('ko-KR')}원
-                      {b.team_a_score != null && b.team_b_score != null
-                        ? ` · 결과 ${b.team_a_score}:${b.team_b_score}`
-                        : ''}
-                    </p>
-                  </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${resultStyle}`}>
-                    {resultLabel}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </section>
-
       {/* 파트너별 기록 */}
       <section>
         <h2 className="mb-2 text-lg font-bold">자주 함께한 파트너</h2>
@@ -356,61 +285,6 @@ export function PlayerDetailPage() {
         )}
       </section>
 
-      {/* 월별 추이 */}
-      <section>
-        <h2 className="mb-2 text-lg font-bold">월별 경기·참가 추이</h2>
-        {trend.length === 0 ? (
-          <p className="rounded-xl bg-white py-6 text-center text-sm text-gray-500 shadow-sm">
-            최근 12개월 내 확정된 경기가 없습니다.
-          </p>
-        ) : (
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-4 text-xs text-gray-600">
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-sm bg-green-600" aria-hidden="true" />
-                경기 수
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-sm bg-sky-500" aria-hidden="true" />
-                참가일
-              </span>
-            </div>
-
-            <div className="flex items-end gap-2 overflow-x-auto">
-              {trend.map((t) => (
-                <div key={t.month} className="flex min-w-12 flex-1 flex-col items-center gap-1">
-                  <div className="flex w-full items-end justify-center gap-0.5">
-                    <div className="flex flex-col items-center">
-                      <span className="text-[11px] font-semibold tabular-nums text-green-700">
-                        {t.matches_played}
-                      </span>
-                      <div
-                        className="w-4 rounded-t-md bg-green-600"
-                        style={{ height: `${(t.matches_played / maxTrendMatches) * 80 + 4}px` }}
-                        title={`${t.month}: ${t.matches_played}경기 (${t.wins}승 ${t.losses}패)`}
-                      />
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-[11px] font-semibold tabular-nums text-sky-600">
-                        {t.days_participated}
-                      </span>
-                      <div
-                        className="w-4 rounded-t-md bg-sky-500"
-                        style={{ height: `${(t.days_participated / maxTrendMatches) * 80 + 4}px` }}
-                        title={`${t.month}: ${t.days_participated}일 참가`}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-[10px] text-gray-400">
-                    {t.month.slice(2).replace('-', '.')}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
-
       {/* 최근 경기 목록 */}
       <section>
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
@@ -476,6 +350,131 @@ export function PlayerDetailPage() {
                       {RESULT_LABELS[m.result]}
                     </span>
                   </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* 월별 추이 */}
+      <section>
+        <h2 className="mb-2 text-lg font-bold">월별 경기·참가 추이</h2>
+        {trend.length === 0 ? (
+          <p className="rounded-xl bg-white py-6 text-center text-sm text-gray-500 shadow-sm">
+            최근 12개월 내 확정된 경기가 없습니다.
+          </p>
+        ) : (
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-4 text-xs text-gray-600">
+              <span className="flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-sm bg-green-600" aria-hidden="true" />
+                경기 수
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-sm bg-sky-500" aria-hidden="true" />
+                참가일
+              </span>
+            </div>
+
+            <div className="flex items-end gap-2 overflow-x-auto">
+              {trend.map((t) => (
+                <div key={t.month} className="flex min-w-12 flex-1 flex-col items-center gap-1">
+                  <div className="flex w-full items-end justify-center gap-0.5">
+                    <div className="flex flex-col items-center">
+                      <span className="text-[11px] font-semibold tabular-nums text-green-700">
+                        {t.matches_played}
+                      </span>
+                      <div
+                        className="w-4 rounded-t-md bg-green-600"
+                        style={{ height: `${(t.matches_played / maxTrendMatches) * 80 + 4}px` }}
+                        title={`${t.month}: ${t.matches_played}경기 (${t.wins}승 ${t.losses}패)`}
+                      />
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-[11px] font-semibold tabular-nums text-sky-600">
+                        {t.days_participated}
+                      </span>
+                      <div
+                        className="w-4 rounded-t-md bg-sky-500"
+                        style={{ height: `${(t.days_participated / maxTrendMatches) * 80 + 4}px` }}
+                        title={`${t.month}: ${t.days_participated}일 참가`}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-gray-400">
+                    {t.month.slice(2).replace('-', '.')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* 배팅 기록 */}
+      <section>
+        <h2 className="mb-2 text-lg font-bold">배팅 기록</h2>
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <StatCard label="배팅 승(적중)" value={`${betStats?.bets_won ?? 0}`} />
+          <StatCard label="배팅 패(미적중)" value={`${betStats?.bets_lost ?? 0}`} />
+          <StatCard
+            label="적중률"
+            value={(() => {
+              const won = betStats?.bets_won ?? 0
+              const lost = betStats?.bets_lost ?? 0
+              const decided = won + lost
+              return decided === 0 ? '-' : `${((won / decided) * 100).toFixed(0)}%`
+            })()}
+          />
+          <StatCard
+            label="적중 금액"
+            value={`${(betStats?.amount_won ?? 0).toLocaleString('ko-KR')}원`}
+          />
+          <StatCard
+            label="미적중 금액"
+            value={`${(betStats?.amount_lost ?? 0).toLocaleString('ko-KR')}원`}
+          />
+        </div>
+        {(betStats?.bets_open ?? 0) > 0 && (
+          <p className="mb-2 text-xs text-gray-500">진행 중 배팅 {betStats?.bets_open}건</p>
+        )}
+        {recentBets.length === 0 ? (
+          <p className="rounded-xl bg-white py-6 text-center text-sm text-gray-500 shadow-sm">
+            아직 배팅 기록이 없습니다.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+            {recentBets.map((b) => {
+              const resultLabel =
+                b.result === 'win' ? '적중' : b.result === 'loss' ? '미적중' : b.result === 'push' ? '무효' : '대기'
+              const resultStyle =
+                b.result === 'win'
+                  ? 'bg-green-100 text-green-800'
+                  : b.result === 'loss'
+                    ? 'bg-red-100 text-red-700'
+                    : b.result === 'push'
+                      ? 'bg-gray-100 text-gray-600'
+                      : 'bg-amber-100 text-amber-800'
+              return (
+                <div
+                  key={b.bet_id}
+                  className="flex items-center justify-between border-b border-gray-50 px-4 py-3 last:border-b-0"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {formatDateKorean(b.match_date)} · {b.predicted_team}팀 승
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {b.amount.toLocaleString('ko-KR')}원
+                      {b.team_a_score != null && b.team_b_score != null
+                        ? ` · 결과 ${b.team_a_score}:${b.team_b_score}`
+                        : ''}
+                    </p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${resultStyle}`}>
+                    {resultLabel}
+                  </span>
                 </div>
               )
             })}
