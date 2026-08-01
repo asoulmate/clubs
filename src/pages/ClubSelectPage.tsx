@@ -14,6 +14,7 @@ const STATUS_LABELS = {
   active: '이용 중',
   pending: '승인 대기',
   rejected: '거절됨',
+  withdrawn: '탈퇴',
 } as const
 
 type ClubOption = Pick<Club, 'id' | 'name' | 'slug'>

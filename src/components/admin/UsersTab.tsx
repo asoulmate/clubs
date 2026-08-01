@@ -4,10 +4,14 @@ import { useDebounce } from '../../hooks/useDebounce'
 import {
   adminRemoveUser,
   adminResetUserPassword,
+  adminResetUserPasswordV2,
+  adminUpdateUserV2,
   adminUpdateUser,
+  adminWithdrawClubMemberV2,
   fetchClubUsers,
   type ClubUserRow,
 } from '../../services/adminService'
+import { featureFlags } from '../../config/featureFlags'
 import {
   approveClubMember,
   setClubMemberRole,
@@ -24,10 +28,12 @@ import { Spinner } from '../common/Spinner'
 /** 메인 관리자: 이름·입상 수정 + 비밀번호 초기화 */
 function AdminEditUserDialog({
   user,
+  clubId,
   onClose,
   onChanged,
 }: {
   user: Profile
+  clubId: string
   onClose: () => void
   onChanged: () => void
 }) {
@@ -47,10 +53,11 @@ function AdminEditUserDialog({
     }
     setSaving(true)
     try {
-      await adminUpdateUser(user.id, {
-        name: name.trim(),
-        award_level: awardLevel,
-      })
+      if (featureFlags.scopedAdminRpc) {
+        await adminUpdateUserV2(clubId, user.id, { name: name.trim(), award_level: awardLevel })
+      } else {
+        await adminUpdateUser(user.id, { name: name.trim(), award_level: awardLevel })
+      }
       showToast('회원 정보가 저장되었습니다.', 'success')
       onChanged()
       onClose()
@@ -71,7 +78,13 @@ function AdminEditUserDialog({
     setError(null)
     setResetting(true)
     try {
-      await adminResetUserPassword(user.id)
+      if (featureFlags.scopedAdminRpc) {
+        const reason = window.prompt('비밀번호 초기화 사유를 입력하세요.')?.trim()
+        if (!reason) return
+        await adminResetUserPasswordV2(clubId, user.id, reason)
+      } else {
+        await adminResetUserPassword(user.id)
+      }
       showToast('비밀번호가 123456 으로 초기화되었습니다.', 'success')
     } catch (err) {
       setError(toErrorMessage(err))
@@ -151,7 +164,7 @@ export function UsersTab() {
 
   const canChangeRole = isAdmin(myProfile)
   const canEditProfile = isAdmin(myProfile)
-  const canRemoveUser = isAdminOrSub(myProfile)
+  const canRemoveUser = featureFlags.scopedAdminRpc ? isAdmin(myProfile) : isAdminOrSub(myProfile)
   const canApprove = isAdminOrSub(myProfile)
 
   const load = useCallback(async () => {
@@ -239,18 +252,29 @@ export function UsersTab() {
 
   const removeUser = async (row: ClubUserRow) => {
     const user = row.profile
-    const message = user.is_guest
-      ? `${user.name} 님(게스트)을 삭제할까요?\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록이 있으면 삭제 대신 비활성화됩니다.`
-      : `${user.name} 님을 탈퇴 처리할까요?\n· 로그인 계정이 삭제되며 재가입이 필요합니다.\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록은 통계용으로 남습니다.`
+    const message = featureFlags.scopedAdminRpc
+      ? `${user.name} 님을 이 클럽에서 탈퇴 처리할까요?\n· 로그인 계정과 다른 클럽은 유지됩니다.\n· 진행 중/확인 대기 경기가 있으면 처리되지 않습니다.\n· 확정된 경기 기록은 유지됩니다.`
+      : user.is_guest
+        ? `${user.name} 님(게스트)을 삭제할까요?\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록이 있으면 삭제 대신 비활성화됩니다.`
+        : `${user.name} 님을 탈퇴 처리할까요?\n· 로그인 계정이 삭제되며 재가입이 필요합니다.\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록은 통계용으로 남습니다.`
     if (!window.confirm(message)) return
     try {
-      const result = await adminRemoveUser(user.id)
+      let result: string
+      if (featureFlags.scopedAdminRpc && club) {
+        const reason = window.prompt('클럽 탈퇴 처리 사유를 입력하세요.')?.trim()
+        if (!reason) return
+        result = await adminWithdrawClubMemberV2(club.id, user.id, reason)
+      } else {
+        result = await adminRemoveUser(user.id)
+      }
       if (result === 'guest_deleted') {
         showToast('게스트가 삭제되었습니다.', 'success')
       } else if (result === 'guest_deactivated') {
         showToast('확정 기록이 있어 게스트를 비활성화했습니다.', 'success')
       } else if (result === 'member_withdrawn') {
         showToast('회원 탈퇴가 처리되었습니다.', 'success')
+      } else if (result === 'club_withdrawn') {
+        showToast('해당 클럽 탈퇴가 처리되었습니다. 다른 클럽과 로그인 계정은 유지됩니다.', 'success')
       } else {
         showToast('계정이 비활성화되었습니다.', 'success')
       }
@@ -373,7 +397,7 @@ export function UsersTab() {
                     ))}
                   </select>
 
-                  <button
+                  {!featureFlags.scopedAdminRpc && <button
                     type="button"
                     disabled={user.id === myProfile?.id}
                     onClick={() => void toggleActive(row)}
@@ -382,7 +406,7 @@ export function UsersTab() {
                     }`}
                   >
                     {user.is_active ? '비활성화' : user.is_guest ? '활성화' : '승인/활성화'}
-                  </button>
+                  </button>}
 
                   {canShowRemove(row) && (
                     <button
@@ -403,6 +427,7 @@ export function UsersTab() {
       {editing && (
         <AdminEditUserDialog
           user={editing}
+          clubId={club?.id ?? ''}
           onClose={() => setEditing(null)}
           onChanged={() => void load()}
         />
