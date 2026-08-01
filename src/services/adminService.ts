@@ -99,6 +99,48 @@ export async function adminResetUserPassword(userId: string): Promise<void> {
   if (error) throw error
 }
 
+/** Feature-flagged explicit club-context reset. Password remains 123456. */
+export async function adminResetUserPasswordV2(
+  clubId: string,
+  userId: string,
+  reason: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_reset_user_password_v2', {
+    p_club_id: clubId,
+    p_user_id: userId,
+    p_reason: reason,
+  })
+  if (error) throw error
+}
+
+export async function adminUpdateUserV2(
+  clubId: string,
+  userId: string,
+  updates: { name?: string; award_level?: AwardLevel },
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_update_user_v2', {
+    p_club_id: clubId,
+    p_user_id: userId,
+    p_name: updates.name ?? null,
+    p_award_level: updates.award_level ?? null,
+  })
+  if (error) throw error
+}
+
+export async function adminWithdrawClubMemberV2(
+  clubId: string,
+  userId: string,
+  reason: string,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_withdraw_club_member_v2', {
+    p_club_id: clubId,
+    p_user_id: userId,
+    p_reason: reason,
+  })
+  if (error) throw error
+  return (data as string) ?? 'club_withdrawn'
+}
+
 /**
  * 게스트 삭제 또는 회원 탈퇴
  * 반환: guest_deleted | guest_deactivated | member_withdrawn | member_deactivated

@@ -5,10 +5,13 @@ import { MatchesTab } from '../components/admin/MatchesTab'
 import { SystemSettingsTab } from '../components/admin/SystemSettingsTab'
 import { TournamentsTab } from '../components/admin/TournamentsTab'
 import { UsersTab } from '../components/admin/UsersTab'
+import { IdentityClaimsTab } from '../components/admin/IdentityClaimsTab'
+import { ShadowRatingTab } from '../components/admin/ShadowRatingTab'
+import { featureFlags } from '../config/featureFlags'
 import { useAuthStore } from '../stores/authStore'
 import { isAdmin, isAdminOrSub } from '../utils/permissions'
 
-type AdminTab = 'users' | 'matches' | 'tournaments' | 'logs' | 'settings' | 'export'
+type AdminTab = 'users' | 'matches' | 'tournaments' | 'logs' | 'settings' | 'export' | 'identity' | 'ratings'
 
 /** 관리자 페이지 (관리자·서브 관리자 전용, 데이터 탭은 서브부터) */
 export function AdminPage() {
@@ -21,6 +24,16 @@ export function AdminPage() {
       { value: 'logs', label: '이력', visible: isAdminOrSub(profile) },
       { value: 'export', label: '데이터', visible: isAdminOrSub(profile) },
       { value: 'settings', label: '설정', visible: isAdmin(profile) },
+      {
+        value: 'identity',
+        label: '선수 연결',
+        visible: featureFlags.identityClaims && Boolean(profile?.is_platform_admin),
+      },
+      {
+        value: 'ratings',
+        label: '레이팅(내부)',
+        visible: featureFlags.shadowRatingAdmin && Boolean(profile?.is_platform_admin),
+      },
     ]
     return all.filter((t) => t.visible)
   }, [profile])
@@ -54,6 +67,8 @@ export function AdminPage() {
       {activeTab === 'logs' && <LogsTab />}
       {activeTab === 'export' && <ExportTab />}
       {activeTab === 'settings' && <SystemSettingsTab />}
+      {activeTab === 'identity' && <IdentityClaimsTab />}
+      {activeTab === 'ratings' && <ShadowRatingTab />}
     </div>
   )
 }

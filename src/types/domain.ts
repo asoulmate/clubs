@@ -63,6 +63,8 @@ export interface Profile {
   affiliation: string | null
   /** 플랫폼 슈퍼 관리자 */
   is_platform_admin: boolean
+  /** Additive canonical player mapping; absent until identity migration is applied. */
+  global_player_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -79,7 +81,7 @@ export interface Club {
   updated_at: string
 }
 
-export type ClubMemberStatus = 'pending' | 'active' | 'rejected'
+export type ClubMemberStatus = 'pending' | 'active' | 'rejected' | 'withdrawn'
 
 export interface ClubMembership {
   club_id: string
@@ -359,5 +361,51 @@ export interface TournamentEntryInput {
   placement: TournamentPlacement
   maxParticipants: number | null
   notes: string | null
+}
+
+// ------------------------------------------------------------
+// Shadow global rating (feature-flagged, administrator only)
+// ------------------------------------------------------------
+
+export interface ShadowRatingPool {
+  pool_id: string
+  pool_name: string
+  scope_type: 'global' | 'club'
+  club_id: string | null
+  discipline: MatchType
+  model_code: string
+  model_version: string
+  enabled: boolean
+}
+
+export interface ShadowRatingRow {
+  global_player_id: string
+  player_name: string
+  rating: number
+  uncertainty: number
+  provisional: boolean
+  games_played: number
+  opponent_count: number
+  linked_club_count: number
+  last_calculated_at: string
+  model_version: string
+  run_id: string
+  excluded_match_count: number
+}
+
+export interface ShadowRatingExclusion {
+  exclusion_reason: string
+  match_count: number
+}
+
+export interface IdentityClaimRow {
+  claim_id: string
+  claim_type: string
+  source_profile_id: string | null
+  target_profile_id: string | null
+  source_global_player_id: string | null
+  target_global_player_id: string | null
+  evidence: Record<string, unknown>
+  requested_at: string
 }
 
