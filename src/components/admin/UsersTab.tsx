@@ -29,11 +29,13 @@ import { Spinner } from '../common/Spinner'
 function AdminEditUserDialog({
   user,
   clubId,
+  canResetPassword,
   onClose,
   onChanged,
 }: {
   user: Profile
   clubId: string
+  canResetPassword: boolean
   onClose: () => void
   onChanged: () => void
 }) {
@@ -136,7 +138,7 @@ function AdminEditUserDialog({
           {saving ? '저장 중...' : '저장'}
         </button>
 
-        {!user.is_guest && (
+        {!user.is_guest && canResetPassword && (
           <button
             type="button"
             disabled={saving || resetting}
@@ -428,6 +430,7 @@ export function UsersTab() {
         <AdminEditUserDialog
           user={editing}
           clubId={club?.id ?? ''}
+          canResetPassword={!editing.is_platform_admin || Boolean(myProfile?.is_platform_admin)}
           onClose={() => setEditing(null)}
           onChanged={() => void load()}
         />

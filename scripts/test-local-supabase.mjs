@@ -154,6 +154,37 @@ const [adminAClient, adminBClient, userA1Client, userA2Client, platformClient] =
   signIn(platformAdmin),
 ])
 
+must(
+  await service
+    .from('app_settings')
+    .update({ value: false })
+    .eq('key', 'security_scoped_admin_rpc_enabled'),
+  'disable scoped RPC for legacy reset guard test',
+)
+await expectFailure(
+  () =>
+    adminAClient.rpc('admin_reset_user_password', {
+      p_user_id: platformAdmin.id,
+    }),
+  'club admin resetting platform admin through legacy RPC',
+)
+const platformPasswordCheckClient = userClient()
+must(
+  await platformPasswordCheckClient.auth.signInWithPassword({
+    email: platformAdmin.email,
+    password: platformAdmin.password,
+  }),
+  'platform admin password remains unchanged',
+)
+must(await platformPasswordCheckClient.auth.signOut(), 'sign out platform password check')
+must(
+  await service
+    .from('app_settings')
+    .update({ value: true })
+    .eq('key', 'security_scoped_admin_rpc_enabled'),
+  'restore scoped RPC after legacy reset guard test',
+)
+
 const initialIdentities = must(
   await service.from('profiles').select('id,global_player_id').in('id', accounts.map((x) => x.id)),
   'load automatic identities',
