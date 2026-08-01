@@ -46,6 +46,8 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           VITE_YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          VITE_FEATURE_SHADOW_RATING_ADMIN: ${{ vars.VITE_FEATURE_SHADOW_RATING_ADMIN || 'false' }}
+          VITE_FEATURE_SHADOW_RATING_CALCULATION: ${{ vars.VITE_FEATURE_SHADOW_RATING_CALCULATION || 'false' }}
 
       - name: Pages 아티팩트 업로드
         uses: actions/upload-pages-artifact@v3
