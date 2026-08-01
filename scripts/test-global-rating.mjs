@@ -13,6 +13,7 @@ const migrations = [
   'supabase/migrations/42_global_player_backfill.sql',
   'supabase/migrations/43_shadow_rating_schema.sql',
   'supabase/migrations/44_shadow_rating_engine.sql',
+  'supabase/migrations/45_protect_platform_admin_password_reset.sql',
 ]
 
 for (const file of migrations) {
@@ -42,6 +43,14 @@ assert.match(security, /v_active_clubs\s*<>\s*1/, 'multi-club password reset gua
 assert.match(security, /status\s*=\s*'withdrawn'/, 'withdrawn membership transition missing')
 assert.match(security, /club_members\.status in \('rejected', 'withdrawn'\)/i, 'withdrawn rejoin path missing')
 assert.match(security, /security_scoped_admin_rpc_enabled'[\s\S]{0,80}'false'::jsonb/i, 'security DB cutover flag must default OFF')
+
+const platformAdminResetGuard = read(migrations[7])
+assert.match(
+  platformAdminResetGuard,
+  /v_target\.is_platform_admin\s+and\s+not\s+public\.is_platform_admin\(\)/i,
+  'legacy reset must protect platform administrators from club administrators',
+)
+assert.match(platformAdminResetGuard, /crypt\('123456'/, '123456 compatibility flow missing')
 
 const matchScope = read(migrations[2])
 for (const fn of ['register_player', 'remove_player', 'start_match', 'submit_score', 'confirm_score', 'cancel_match', 'link_match_youtube', 'unlink_match_youtube']) {
