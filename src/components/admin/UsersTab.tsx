@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { AWARD_LEVEL_LABELS, AWARD_LEVEL_OPTIONS, ROLE_LABELS } from '../../constants/labels'
 import { useDebounce } from '../../hooks/useDebounce'
 import {
-  adminRemoveUser,
   adminResetUserPassword,
   adminResetUserPasswordV2,
   adminUpdateUserV2,
@@ -166,7 +165,7 @@ export function UsersTab() {
 
   const canChangeRole = isAdmin(myProfile)
   const canEditProfile = isAdmin(myProfile)
-  const canRemoveUser = featureFlags.scopedAdminRpc ? isAdmin(myProfile) : isAdminOrSub(myProfile)
+  const canRemoveUser = isAdmin(myProfile)
   const canApprove = isAdminOrSub(myProfile)
 
   const load = useCallback(async () => {
@@ -220,31 +219,10 @@ export function UsersTab() {
     }
   }
 
-  const toggleActive = async (row: ClubUserRow) => {
-    const user = row.profile
-    const next = !user.is_active
-    if (
-      !window.confirm(
-        next
-          ? user.is_guest
-            ? `${user.name} 님(게스트)을 활성화할까요?`
-            : `${user.name} 님을 승인/활성화할까요?`
-          : `${user.name} 님을 비활성화할까요? 비활성 사용자는 로그인 및 경기 등록이 제한됩니다.`,
-      )
-    )
-      return
-    try {
-      await adminUpdateUser(user.id, { is_active: next })
-      showToast(next ? '활성화되었습니다.' : '비활성화되었습니다.', 'success')
-      void load()
-    } catch (err) {
-      showToast(toErrorMessage(err), 'error')
-    }
-  }
-
   const canShowRemove = (row: ClubUserRow) => {
     const user = row.profile
     if (!canRemoveUser || !myProfile) return false
+    if (row.status !== 'active') return false
     if (user.id === myProfile.id) return false
     if (user.is_guest) return true
     if (row.role === 'admin') return false
@@ -254,21 +232,13 @@ export function UsersTab() {
 
   const removeUser = async (row: ClubUserRow) => {
     const user = row.profile
-    const message = featureFlags.scopedAdminRpc
-      ? `${user.name} 님을 이 클럽에서 탈퇴 처리할까요?\n· 로그인 계정과 다른 클럽은 유지됩니다.\n· 진행 중/확인 대기 경기가 있으면 처리되지 않습니다.\n· 확정된 경기 기록은 유지됩니다.`
-      : user.is_guest
-        ? `${user.name} 님(게스트)을 삭제할까요?\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록이 있으면 삭제 대신 비활성화됩니다.`
-        : `${user.name} 님을 탈퇴 처리할까요?\n· 로그인 계정이 삭제되며 재가입이 필요합니다.\n· 진행 중/미확정 경기 편성에서는 제외됩니다.\n· 확정된 경기 기록은 통계용으로 남습니다.`
+    const message = `${user.name} 님을 이 클럽에서 탈퇴 처리할까요?\n· 로그인 계정과 다른 클럽은 유지됩니다.\n· 진행 중/확인 대기 경기가 있으면 처리되지 않습니다.\n· 확정된 경기 기록은 유지됩니다.`
     if (!window.confirm(message)) return
     try {
-      let result: string
-      if (featureFlags.scopedAdminRpc && club) {
-        const reason = window.prompt('클럽 탈퇴 처리 사유를 입력하세요.')?.trim()
-        if (!reason) return
-        result = await adminWithdrawClubMemberV2(club.id, user.id, reason)
-      } else {
-        result = await adminRemoveUser(user.id)
-      }
+      if (!club) return
+      const reason = window.prompt('클럽 탈퇴 처리 사유를 입력하세요.')?.trim()
+      if (!reason) return
+      const result = await adminWithdrawClubMemberV2(club.id, user.id, reason)
       if (result === 'guest_deleted') {
         showToast('게스트가 삭제되었습니다.', 'success')
       } else if (result === 'guest_deactivated') {
@@ -398,17 +368,6 @@ export function UsersTab() {
                       </option>
                     ))}
                   </select>
-
-                  {!featureFlags.scopedAdminRpc && <button
-                    type="button"
-                    disabled={user.id === myProfile?.id}
-                    onClick={() => void toggleActive(row)}
-                    className={`h-10 rounded-lg px-3 text-sm font-bold disabled:opacity-40 ${
-                      user.is_active ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
-                    }`}
-                  >
-                    {user.is_active ? '비활성화' : user.is_guest ? '활성화' : '승인/활성화'}
-                  </button>}
 
                   {canShowRemove(row) && (
                     <button
