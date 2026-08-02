@@ -411,6 +411,58 @@ export interface ShadowRatingExclusion {
   match_count: number
 }
 
+export interface ShadowRatingEgoNode {
+  global_player_id: string
+  player_name: string
+  rating: number | null
+  uncertainty: number | null
+  hop: number
+  games_vs_center: number
+}
+
+export interface ShadowRatingEgoEdge {
+  from_id: string
+  to_id: string
+  match_count: number
+}
+
+export interface ShadowRatingEgo {
+  center: {
+    global_player_id: string
+    player_name: string
+    rating: number
+    uncertainty: number
+  } | null
+  nodes: ShadowRatingEgoNode[]
+  edges: ShadowRatingEgoEdge[]
+}
+
+export interface ShadowRatingPathHop {
+  from_id: string
+  to_id: string
+  from_name: string
+  to_name: string
+  match_id: string | null
+  match_date: string | null
+  team_a_score: number | null
+  team_b_score: number | null
+  club_name: string | null
+}
+
+export interface ShadowRatingPathNode {
+  global_player_id: string
+  player_name: string
+  rating: number | null
+  uncertainty: number | null
+}
+
+export interface ShadowRatingPath {
+  found: boolean
+  path: string[]
+  nodes: ShadowRatingPathNode[]
+  hops: ShadowRatingPathHop[]
+}
+
 export interface IdentityClaimRow {
   claim_id: string
   claim_type: string

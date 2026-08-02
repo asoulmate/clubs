@@ -130,12 +130,20 @@ export function ClubSelectPage() {
       </div>
 
       {profile?.is_platform_admin && (
-        <Link
-          to="/platform"
-          className="flex h-12 items-center justify-center rounded-xl border-2 border-green-700 font-bold text-green-800 active:bg-green-50"
-        >
-          플랫폼 관리
-        </Link>
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            to="/platform"
+            className="flex h-12 items-center justify-center rounded-xl border-2 border-green-700 font-bold text-green-800 active:bg-green-50"
+          >
+            플랫폼 관리
+          </Link>
+          <Link
+            to="/platform/ratings"
+            className="flex h-12 items-center justify-center rounded-xl border-2 border-emerald-600 font-bold text-emerald-800 active:bg-emerald-50"
+          >
+            글로벌 레이팅
+          </Link>
+        </div>
       )}
 
       {myClubs.length === 0 ? (

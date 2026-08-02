@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_FEATURE_GUEST_CLAIM_CANDIDATES?: string
   readonly VITE_FEATURE_SHADOW_RATING_CALCULATION?: string
   readonly VITE_FEATURE_SHADOW_RATING_ADMIN?: string
+  readonly VITE_FEATURE_SHADOW_RATING_PUBLIC?: string
 }
 
 interface ImportMeta {

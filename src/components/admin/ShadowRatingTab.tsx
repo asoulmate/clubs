@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { featureFlags } from '../../config/featureFlags'
 import {
   getShadowRatingExclusions,
@@ -15,6 +16,7 @@ import type {
 } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 import { Spinner } from '../common/Spinner'
+import { RatingFormulaBanner } from '../ratings/RatingFormulaBanner'
 
 export function ShadowRatingTab() {
   const club = useClubStore((s) => s.club)
@@ -88,8 +90,15 @@ export function ShadowRatingTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-        내부 검증용 Shadow 레이팅입니다. 기존 결과 순위와 일반 사용자 화면에는 반영되지 않습니다.
+        클럽 멤버 기준 Shadow 미리보기입니다. 플랫폼 전체·연결 탐색은{' '}
+        <Link to="/platform/ratings" className="font-bold underline">
+          글로벌 레이팅
+        </Link>
+        페이지를 이용하세요.
       </div>
+
+      <RatingFormulaBanner />
+
       <div className="flex flex-wrap gap-2">
         <select
           value={poolId}
@@ -116,35 +125,43 @@ export function ShadowRatingTab() {
 
       {loading ? <div className="flex justify-center py-10"><Spinner /></div> : (
         <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
-          <table className="min-w-[1300px] w-full text-sm">
+          <table className="min-w-[900px] w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-600">
               <tr>
-                <th className="p-3">선수</th><th className="p-3">Global ID</th>
-                <th className="p-3">레이팅</th><th className="p-3">불확실성</th>
-                <th className="p-3">상태</th><th className="p-3">경기</th>
-                <th className="p-3">상대</th><th className="p-3">클럽</th>
-                <th className="p-3">마지막 계산</th><th className="p-3">모델</th>
-                <th className="p-3">최근 run</th><th className="p-3">제외 경기</th>
+                <th className="p-3">선수</th>
+                <th className="p-3">레이팅</th>
+                <th className="p-3">불확실성</th>
+                <th className="p-3">상태</th>
+                <th className="p-3">경기</th>
+                <th className="p-3">상대</th>
+                <th className="p-3">클럽</th>
+                <th className="p-3">마지막 계산</th>
+                <th className="p-3">모델</th>
+                <th className="p-3">제외 경기</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.global_player_id} className="border-t border-gray-100">
                   <td className="p-3 font-semibold">{row.player_name}</td>
-                  <td className="p-3 font-mono text-xs">{row.global_player_id}</td>
                   <td className="p-3">{row.rating.toFixed(1)}</td>
                   <td className="p-3">±{row.uncertainty.toFixed(1)}</td>
-                  <td className="p-3">{row.provisional ? 'provisional' : 'established'}</td>
+                  <td className="p-3">{row.provisional ? '잠정' : '확립'}</td>
                   <td className="p-3">{row.games_played}</td>
                   <td className="p-3">{row.opponent_count}</td>
                   <td className="p-3">{row.linked_club_count}</td>
                   <td className="p-3">{new Date(row.last_calculated_at).toLocaleString('ko-KR')}</td>
                   <td className="p-3">{row.model_version}</td>
-                  <td className="p-3 font-mono text-xs">{row.run_id.slice(0, 8)}</td>
                   <td className="p-3">{row.excluded_match_count}</td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={12} className="p-10 text-center text-gray-500">계산된 결과가 없습니다.</td></tr>}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="p-10 text-center text-gray-500">
+                    계산된 결과가 없습니다.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -152,9 +169,15 @@ export function ShadowRatingTab() {
 
       <div className="rounded-xl bg-white p-4 shadow-sm">
         <h2 className="font-bold">최근 run 제외 경기</h2>
-        {exclusions.length === 0 ? <p className="mt-2 text-sm text-gray-500">제외 경기 없음 또는 실행 전</p> : (
+        {exclusions.length === 0 ? (
+          <p className="mt-2 text-sm text-gray-500">제외 경기 없음 또는 실행 전</p>
+        ) : (
           <ul className="mt-2 text-sm text-gray-700">
-            {exclusions.map((row) => <li key={row.exclusion_reason}>{row.exclusion_reason}: {row.match_count}경기</li>)}
+            {exclusions.map((row) => (
+              <li key={row.exclusion_reason}>
+                {row.exclusion_reason}: {row.match_count}경기
+              </li>
+            ))}
           </ul>
         )}
       </div>

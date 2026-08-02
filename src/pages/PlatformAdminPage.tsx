@@ -97,9 +97,14 @@ export function PlatformAdminPage() {
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-5 px-4 py-8">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-extrabold text-green-800">플랫폼 관리</h1>
-        <Link to="/" className="text-sm font-semibold text-green-700 underline">
-          클럽 선택
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link to="/platform/ratings" className="text-sm font-semibold text-green-700 underline">
+            글로벌 레이팅
+          </Link>
+          <Link to="/" className="text-sm font-semibold text-green-700 underline">
+            클럽 선택
+          </Link>
+        </div>
       </div>
 
       <form onSubmit={handleCreate} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">

@@ -183,23 +183,29 @@ export function SystemSettingsTab() {
           />
         </div>
 
-        <div className={rowClass}>
-          <div>
+        <div className="flex flex-col gap-2 border-b border-gray-50 px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <div className="min-w-0">
             <p className="font-semibold">순위 집계 방식</p>
             <p className="text-xs text-gray-400">결과 집계 표의 공식 순위 산정 순서</p>
           </div>
-          <select
-            value={settings.ranking_mode}
-            disabled={readOnly || saving}
-            onChange={(e) => void save('ranking_mode', e.target.value as RankingMode)}
-            className={selectClass}
-          >
-            {RANKING_MODE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label} ({opt.hint})
-              </option>
-            ))}
-          </select>
+          <div className="w-full min-w-0 sm:w-48 sm:shrink-0">
+            <select
+              value={settings.ranking_mode}
+              disabled={readOnly || saving}
+              onChange={(e) => void save('ranking_mode', e.target.value as RankingMode)}
+              className="h-11 w-full max-w-full rounded-lg border border-gray-300 px-2 text-sm disabled:bg-gray-100"
+              aria-label="순위 집계 방식"
+            >
+              {RANKING_MODE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-400">
+              {RANKING_MODE_OPTIONS.find((o) => o.value === settings.ranking_mode)?.hint}
+            </p>
+          </div>
         </div>
 
         <div className={rowClass}>

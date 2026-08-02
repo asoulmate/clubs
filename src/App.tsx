@@ -19,6 +19,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { InactiveAccountPage } from './pages/InactiveAccountPage'
 import { ClubSelectPage } from './pages/ClubSelectPage'
 import { PlatformAdminPage } from './pages/PlatformAdminPage'
+import { GlobalRatingsPage } from './pages/GlobalRatingsPage'
 
 /** 로그인 필요 라우트 가드 */
 function RequireAuth() {
@@ -84,6 +85,7 @@ export default function App() {
         <Route element={<RequireAuth />}>
           <Route path="/" element={<ClubSelectPage />} />
           <Route path="/platform" element={<PlatformAdminPage />} />
+          <Route path="/platform/ratings" element={<GlobalRatingsPage />} />
 
           <Route path="/c/:clubSlug" element={<ClubGate />}>
             <Route element={<AppLayout />}>
