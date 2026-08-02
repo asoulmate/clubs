@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useParams } from 'react-router-dom'
+import { Outlet, useNavigate, useParams } from 'react-router-dom'
 import { requestClubJoin } from '../../services/clubService'
 import { useAuthStore } from '../../stores/authStore'
 import { useClubStore } from '../../stores/clubStore'
@@ -13,6 +13,7 @@ const DEFAULT_DOCUMENT_TITLE = '창원테니스클럽'
 
 /** URL 슬러그로 클럽 진입 · 멤버십 게이트 */
 export function ClubGate() {
+  const navigate = useNavigate()
   const { clubSlug } = useParams<{ clubSlug: string }>()
   const profile = useAuthStore((s) => s.profile)
   const { club, membership, enterClubBySlug, loadMyClubs } = useClubStore()
@@ -43,6 +44,10 @@ export function ClubGate() {
           void loadSettings(state.club.id)
         } else {
           void loadSettings()
+          const fallback = state.myClubs.find(
+            (item) => item.status === 'active' && item.slug !== clubSlug,
+          )
+          navigate(fallback ? `/c/${fallback.slug}` : '/', { replace: true })
         }
       })
       .catch((err) => {
@@ -55,7 +60,7 @@ export function ClubGate() {
     return () => {
       stale = true
     }
-  }, [clubSlug, enterClubBySlug, loadSettings])
+  }, [clubSlug, enterClubBySlug, loadSettings, navigate])
 
   // 브라우저 탭 제목: 클럽 페이지에서는 클럽 이름, 벗어나면 기본 제목으로 복원
   useEffect(() => {
