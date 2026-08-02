@@ -127,7 +127,7 @@ export function MatchesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="pb-matches-fab flex flex-col gap-4 md:pb-24">
       <DateNavigator date={date} onChange={setDate} />
 
       {club?.absence_enabled && <AbsencesPanel date={date} />}

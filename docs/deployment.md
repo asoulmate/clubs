@@ -42,6 +42,8 @@ SQL Editor에서 순서대로 실행:
 26. `supabase/migrations/28_platform_create_club_admin.sql` (플랫폼 클럽 생성 시 생성자=클럽 관리자)
 27. `supabase/migrations/29_audit_logs_club_scope.sql` (수정 이력: 클럽별 조회)
 28. `supabase/migrations/30_admin_permission_fixes.sql` (비밀번호 초기화·관리자 스코어 권한: club_members/플랫폼 슈퍼)
+29. `supabase/migrations/38_security_baseline_foundation.sql` ~ `47_guest_global_identity_linking.sql` (보안·글로벌 신원·Shadow Elo 등)
+30. `supabase/migrations/48_tie_default_and_ranking_mode.sql` (동점 기본 허용 + 순위 집계 방식 ranking_mode)
 
 ### 1-2. 최초 관리자 지정
 

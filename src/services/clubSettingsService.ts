@@ -31,6 +31,16 @@ export async function fetchClubSettings(clubId: string): Promise<AppSettings> {
   ) {
     merged.youtube_upload_delay_days = DEFAULT_SETTINGS.youtube_upload_delay_days
   }
+  if (
+    merged.ranking_mode !== 'wins' &&
+    merged.ranking_mode !== 'win_rate' &&
+    merged.ranking_mode !== 'points'
+  ) {
+    merged.ranking_mode = DEFAULT_SETTINGS.ranking_mode
+  }
+  if (typeof merged.allow_tie !== 'boolean') {
+    merged.allow_tie = DEFAULT_SETTINGS.allow_tie
+  }
   return merged
 }
 

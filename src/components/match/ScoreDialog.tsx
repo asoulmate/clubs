@@ -95,6 +95,9 @@ export function ScoreDialog({ match, onClose, onChanged }: ScoreDialogProps) {
             확정 요청 후 상대 팀 참가자 1명이 최종 확인하면 경기가 확정됩니다.
           </p>
         )}
+        {settings.allow_tie && (
+          <p className="text-center text-xs text-gray-400">동점(예: 5:5)은 무승부로 기록됩니다.</p>
+        )}
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

@@ -5,9 +5,10 @@ import { useAuthStore } from '../../stores/authStore'
 import { useClubStore } from '../../stores/clubStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useToastStore } from '../../stores/toastStore'
-import type { AppSettings, ConfirmMode, MatchType } from '../../types/domain'
+import type { AppSettings, ConfirmMode, MatchType, RankingMode } from '../../types/domain'
 import { toErrorMessage } from '../../utils/errors'
 import { isAdmin } from '../../utils/permissions'
+import { RANKING_MODE_OPTIONS } from '../../utils/ranking'
 
 /** 관리자 - 시스템 설정 탭 (클럽 기능 플래그 + 운영 설정) */
 export function SystemSettingsTab() {
@@ -147,7 +148,7 @@ export function SystemSettingsTab() {
         <div className={rowClass}>
           <div>
             <p className="font-semibold">동점 허용</p>
-            <p className="text-xs text-gray-400">허용 시 무승부로 기록되며 승/패 집계에서 제외</p>
+            <p className="text-xs text-gray-400">허용 시 5:5 등 동점을 무승부로 기록 (기본 허용)</p>
           </div>
           <select
             value={settings.allow_tie ? 'true' : 'false'}
@@ -155,8 +156,8 @@ export function SystemSettingsTab() {
             onChange={(e) => void save('allow_tie', e.target.value === 'true')}
             className={selectClass}
           >
-            <option value="false">허용 안 함</option>
             <option value="true">허용</option>
+            <option value="false">허용 안 함</option>
           </select>
         </div>
 
@@ -180,6 +181,25 @@ export function SystemSettingsTab() {
             className="h-11 w-20 rounded-lg border border-gray-300 px-2 text-center text-sm disabled:bg-gray-100"
             aria-label="최대 입력 점수"
           />
+        </div>
+
+        <div className={rowClass}>
+          <div>
+            <p className="font-semibold">순위 집계 방식</p>
+            <p className="text-xs text-gray-400">결과 집계 표의 공식 순위 산정 순서</p>
+          </div>
+          <select
+            value={settings.ranking_mode}
+            disabled={readOnly || saving}
+            onChange={(e) => void save('ranking_mode', e.target.value as RankingMode)}
+            className={selectClass}
+          >
+            {RANKING_MODE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label} ({opt.hint})
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className={rowClass}>

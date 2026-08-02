@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import type { RankedPlayerStats } from '../../types/domain'
+import type { RankedPlayerStats, RankingMode } from '../../types/domain'
 import { PlayerNameButton } from '../players/PlayerNameButton'
 
 interface RankingTableProps {
   rows: RankedPlayerStats[]
   minMatches: number
+  rankingMode?: RankingMode
 }
 
 type SortKey =
@@ -14,6 +15,7 @@ type SortKey =
   | 'wins'
   | 'losses'
   | 'ties'
+  | 'league_points'
   | 'win_rate'
   | 'points_for'
   | 'points_against'
@@ -35,7 +37,7 @@ function podiumStyles(rank: number | null): { row: string; sticky: string } {
 function compareValues(a: number | string | null, b: number | string | null, dir: SortDir): number {
   const mul = dir === 'asc' ? 1 : -1
   if (a === null && b === null) return 0
-  if (a === null) return 1 // null(미참가 등)은 항상 뒤
+  if (a === null) return 1
   if (b === null) return -1
   if (typeof a === 'string' && typeof b === 'string') {
     return a.localeCompare(b, 'ko') * mul
@@ -57,6 +59,8 @@ function getSortValue(row: RankedPlayerStats, key: SortKey): number | string | n
       return row.losses
     case 'ties':
       return row.ties
+    case 'league_points':
+      return row.league_points
     case 'win_rate':
       return row.win_rate
     case 'points_for':
@@ -75,12 +79,13 @@ function getSortValue(row: RankedPlayerStats, key: SortKey): number | string | n
 }
 
 /**
- * 개인별 순위표
- *  - 헤더 클릭 시 해당 컬럼 오름/내림차순 정렬
- *  - 참가율 다음(맨 끝)에 무단 결석 열 표시
- *  - 1·2·3등 행 하이라이트
+ * 개인별 순위표 (모바일 밀도 우선)
  */
-export function RankingTable({ rows, minMatches }: RankingTableProps) {
+export function RankingTable({
+  rows,
+  minMatches,
+  rankingMode = 'wins',
+}: RankingTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('rank')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
@@ -89,7 +94,6 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
     list.sort((a, b) => {
       const primary = compareValues(getSortValue(a, sortKey), getSortValue(b, sortKey), sortDir)
       if (primary !== 0) return primary
-      // 동률이면 이름, 그다음 기존 순위
       const byName = a.name.localeCompare(b.name, 'ko')
       if (byName !== 0) return byName
       return compareValues(a.rank, b.rank, 'asc')
@@ -105,19 +109,19 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
     )
   }
 
-  const hasTies = rows.some((r) => r.ties > 0)
+  const hasTies = rows.some((r) => r.ties > 0) || rankingMode === 'points'
+  const showPoints = rankingMode === 'points'
 
-  const stickyRank = 'sticky left-0 z-10 w-14 min-w-14 align-middle'
-  const stickyName = 'sticky left-14 z-10 border-r border-gray-200 align-middle'
-  const numCell = 'whitespace-nowrap px-2.5 py-2 text-center align-middle tabular-nums'
-  const numHead = 'whitespace-nowrap px-2.5 py-3 text-center font-semibold'
+  const stickyRank = 'sticky left-0 z-10 w-10 min-w-10 align-middle'
+  const stickyName = 'sticky left-10 z-10 border-r border-gray-200 align-middle'
+  const numCell = 'whitespace-nowrap px-1.5 py-1 text-center align-middle tabular-nums text-[13px]'
+  const numHead = 'whitespace-nowrap px-1.5 py-1.5 text-center font-semibold'
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortKey(key)
-      // 이름·순위는 기본 오름차순, 수치 컬럼은 기본 내림차순
       setSortDir(key === 'name' || key === 'rank' ? 'asc' : 'desc')
     }
   }
@@ -140,13 +144,13 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
       <button
         type="button"
         onClick={() => toggleSort(columnKey)}
-        className={`inline-flex min-h-9 items-center justify-center gap-0.5 whitespace-nowrap rounded-lg px-1 font-semibold active:bg-gray-200 ${
+        className={`inline-flex min-h-8 items-center justify-center gap-0.5 whitespace-nowrap rounded-md px-0.5 text-[11px] font-semibold active:bg-gray-200 sm:text-xs ${
           sortKey === columnKey ? 'text-green-700' : 'text-gray-500'
         }`}
         aria-label={`${label} 정렬`}
       >
         {label}
-        <span className="shrink-0 text-[10px]" aria-hidden="true">
+        <span className="shrink-0 text-[9px]" aria-hidden="true">
           {sortMark(columnKey) || ' ↕'}
         </span>
       </button>
@@ -160,27 +164,30 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
               <SortableTh
-                label="순위"
+                label="#"
                 columnKey="rank"
-                className={`${stickyRank} bg-gray-50 px-1 py-3 text-center`}
+                className={`${stickyRank} bg-gray-50 px-0.5 py-1.5 text-center`}
               />
               <SortableTh
                 label="이름"
                 columnKey="name"
-                className={`${stickyName} bg-gray-50 px-2 py-3 text-left`}
+                className={`${stickyName} bg-gray-50 px-1.5 py-1.5 text-left`}
               />
               <SortableTh label="경기" columnKey="matches_played" className={numHead} />
               <SortableTh label="승" columnKey="wins" className={numHead} />
               <SortableTh label="패" columnKey="losses" className={numHead} />
               {hasTies && <SortableTh label="무" columnKey="ties" className={numHead} />}
+              {showPoints && (
+                <SortableTh label="승점" columnKey="league_points" className={numHead} />
+              )}
               <SortableTh label="승률" columnKey="win_rate" className={numHead} />
               <SortableTh label="득점" columnKey="points_for" className={numHead} />
               <SortableTh label="실점" columnKey="points_against" className={numHead} />
-              <SortableTh label="득실차" columnKey="point_diff" className={numHead} />
-              <SortableTh label="참가일" columnKey="days_participated" className={numHead} />
+              <SortableTh label="득실" columnKey="point_diff" className={numHead} />
+              <SortableTh label="참가" columnKey="days_participated" className={numHead} />
               <SortableTh label="참가율" columnKey="participation_rate" className={numHead} />
               <SortableTh
-                label="무단결석"
+                label="결석"
                 columnKey="absences"
                 className={`${numHead} text-red-700`}
               />
@@ -198,55 +205,35 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
                   key={row.user_id}
                   className={`border-b border-gray-50 last:border-b-0 ${podium.row}`}
                 >
-                  <td className={`${stickyRank} ${podium.sticky} px-1 py-2 text-center`}>
+                  <td className={`${stickyRank} ${podium.sticky} px-0.5 py-1 text-center`}>
                     {row.rank === null ? (
                       <span
-                        className="text-xs font-medium text-gray-400"
+                        className="text-[10px] font-medium text-gray-400"
                         title={
                           row.matches_played === 0
                             ? '확정 경기 미참가 (순위 제외)'
                             : `최소 ${minMatches}경기 미달로 순위 제외`
                         }
                       >
-                        {row.matches_played === 0 ? '미참가' : '제외'}
+                        —
                       </span>
-                    ) : row.rank === 1 ? (
-                      <span
-                        className="inline-flex flex-col items-center text-base font-extrabold text-amber-800"
-                        aria-label="1위"
-                      >
-                        <span>🥇</span>
-                        <span className="text-[10px]">1위</span>
-                      </span>
-                    ) : row.rank === 2 ? (
-                      <span
-                        className="inline-flex flex-col items-center text-base font-extrabold text-slate-700"
-                        aria-label="2위"
-                      >
-                        <span>🥈</span>
-                        <span className="text-[10px]">2위</span>
-                      </span>
-                    ) : row.rank === 3 ? (
-                      <span
-                        className="inline-flex flex-col items-center text-base font-extrabold text-orange-800"
-                        aria-label="3위"
-                      >
-                        <span>🥉</span>
-                        <span className="text-[10px]">3위</span>
+                    ) : row.rank <= 3 ? (
+                      <span className="text-sm leading-none" aria-label={`${row.rank}위`}>
+                        {row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : '🥉'}
                       </span>
                     ) : (
-                      <span className="font-bold text-gray-700">{row.rank}</span>
+                      <span className="text-[13px] font-bold text-gray-700">{row.rank}</span>
                     )}
                   </td>
-                  <td className={`${stickyName} ${podium.sticky} whitespace-nowrap px-2 py-2`}>
-                    <div className="flex min-h-11 items-center">
+                  <td className={`${stickyName} ${podium.sticky} whitespace-nowrap px-1.5 py-1`}>
+                    <div className="flex min-h-8 items-center">
                       <PlayerNameButton
                         userId={row.user_id}
                         name={row.name}
                         awardLevel={row.award_level}
                         affiliation={row.is_guest ? row.affiliation : null}
-                        affiliationClassName="text-xs"
-                        className="min-h-0 items-start justify-center py-0"
+                        affiliationClassName="text-[10px]"
+                        className="min-h-0 items-start justify-center py-0 text-[13px]"
                       />
                     </div>
                   </td>
@@ -254,13 +241,16 @@ export function RankingTable({ rows, minMatches }: RankingTableProps) {
                   <td className={`${numCell} font-semibold text-green-700`}>{row.wins}</td>
                   <td className={`${numCell} font-semibold text-red-600`}>{row.losses}</td>
                   {hasTies && <td className={`${numCell} text-gray-500`}>{row.ties}</td>}
-                  <td className={`${numCell} font-semibold`}>{row.win_rate.toFixed(1)}%</td>
+                  {showPoints && (
+                    <td className={`${numCell} font-bold text-green-800`}>{row.league_points}</td>
+                  )}
+                  <td className={`${numCell} font-semibold`}>{row.win_rate.toFixed(0)}%</td>
                   <td className={numCell}>{row.points_for}</td>
                   <td className={numCell}>{row.points_against}</td>
                   <td className={numCell}>
                     {row.point_diff > 0 ? `+${row.point_diff}` : row.point_diff}
                   </td>
-                  <td className={numCell}>{row.days_participated}일</td>
+                  <td className={numCell}>{row.days_participated}</td>
                   <td className={numCell}>{row.participation_rate.toFixed(0)}%</td>
                   <td
                     className={`${numCell} font-extrabold ${

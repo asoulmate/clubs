@@ -11,7 +11,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import type { MatchFineRecord, MatchType, PlayerStatsRow } from '../types/domain'
 import { addDaysToDateString, todayKst } from '../utils/kst'
 import { getPeriodRange, PERIOD_OPTIONS, type PeriodType } from '../utils/period'
-import { buildRanking } from '../utils/ranking'
+import { buildRanking, RANKING_MODE_OPTIONS } from '../utils/ranking'
 
 /**
  * 결과 집계 페이지
@@ -71,9 +71,12 @@ export function ResultsPage() {
   }, [range.from, range.to, clubId, matchType, fineEnabled])
 
   const ranked = useMemo(
-    () => buildRanking(rows, settings.min_matches_for_ranking),
-    [rows, settings.min_matches_for_ranking],
+    () => buildRanking(rows, settings.min_matches_for_ranking, settings.ranking_mode),
+    [rows, settings.min_matches_for_ranking, settings.ranking_mode],
   )
+
+  const rankingHint =
+    RANKING_MODE_OPTIONS.find((o) => o.value === settings.ranking_mode)?.hint ?? ''
 
   const dateInputClass =
     'h-11 flex-1 rounded-xl border border-gray-300 px-3 text-base font-semibold focus:border-green-600 focus:outline-none'
@@ -141,6 +144,9 @@ export function ResultsPage() {
       <h2 className="text-lg font-bold text-gray-800">
         {range.label} {MATCH_TYPE_LABELS[matchType]} 순위
       </h2>
+      {rankingHint && (
+        <p className="-mt-2 text-xs text-gray-400">집계: {rankingHint}</p>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-16">
@@ -150,7 +156,11 @@ export function ResultsPage() {
         <p className="py-10 text-center text-gray-600">{error}</p>
       ) : (
         <>
-          <RankingTable rows={ranked} minMatches={settings.min_matches_for_ranking} />
+          <RankingTable
+            rows={ranked}
+            minMatches={settings.min_matches_for_ranking}
+            rankingMode={settings.ranking_mode}
+          />
           {settings.min_matches_for_ranking > 0 && (
             <p className="text-xs text-gray-400">
               * 공식 순위는 {settings.min_matches_for_ranking}경기 이상 참가자를 대상으로 하며,

@@ -1,18 +1,15 @@
-import type { PlayerStatsRow, RankedPlayerStats } from '../types/domain'
+import type { PlayerStatsRow, RankedPlayerStats, RankingMode } from '../types/domain'
 
 // ============================================================
 // 순위 계산 로직 (UI와 분리, 기준 변경 시 이 파일만 수정)
 //
-// 기본 순위 기준 (위에서부터 순서대로 비교):
-//   1. 승리 수 많은 순
-//   2. 승률 높은 순
-//   3. 득실 차 높은 순
-//   4. 득점 높은 순
-//   5. 경기 수 많은 순
-//   6. 이름 오름차순 (순위 동률 판단에서는 제외)
+// ranking_mode 별 1차 기준:
+//   wins     — 승수 → 승률 → 득실 → 득점 → 경기수
+//   win_rate — 승률 → 승수 → 득실 → 득점 → 경기수
+//   points   — 승점(승3·무1·패0) → 득실 → 승수 → 승률 → 경기수
 //
-// 동률 정책: 공동 순위를 허용하는 경쟁 순위 방식 (1, 2, 2, 4위)
-// 경기 0회(무단 결석만 등)는 공식 순위에서 제외하고 목록 맨 아래에 배치
+// 동률 정책: 공동 순위 (1, 2, 2, 4위)
+// 경기 0회·최소 경기 미달은 rank = null
 // ============================================================
 
 /** 승률 계산: 경기 수가 0이면 0% */
@@ -25,46 +22,73 @@ export function calcParticipationRate(daysParticipated: number, totalMatchDays: 
   return totalMatchDays === 0 ? 0 : (daysParticipated / totalMatchDays) * 100
 }
 
+/** 승점: 승 3 · 무 1 · 패 0 */
+export function calcLeaguePoints(wins: number, ties: number): number {
+  return wins * 3 + ties * 1
+}
+
+export const RANKING_MODE_OPTIONS: { value: RankingMode; label: string; hint: string }[] = [
+  {
+    value: 'wins',
+    label: '승수 우선',
+    hint: '승수 → 승률 → 득실차',
+  },
+  {
+    value: 'win_rate',
+    label: '승률 우선',
+    hint: '승률 → 승수 → 득실차',
+  },
+  {
+    value: 'points',
+    label: '승점 우선',
+    hint: '승점(승3·무1) → 득실차 → 승수',
+  },
+]
+
+type Derived = Omit<RankedPlayerStats, 'rank'> & { league_points: number }
+
 /** 파생 지표 계산 */
-function withDerived(row: PlayerStatsRow): Omit<RankedPlayerStats, 'rank'> {
+function withDerived(row: PlayerStatsRow): Derived {
   return {
     ...row,
     win_rate: calcWinRate(row.wins, row.matches_played),
     point_diff: row.points_for - row.points_against,
     participation_rate: calcParticipationRate(row.days_participated, row.total_match_days),
+    league_points: calcLeaguePoints(row.wins, row.ties),
   }
 }
 
-type Derived = Omit<RankedPlayerStats, 'rank'>
-
-/** 순위 비교 키 (동률 판단에도 사용, 이름은 제외) */
-function rankKeys(row: Derived): number[] {
-  return [row.wins, row.win_rate, row.point_diff, row.points_for, row.matches_played]
+function rankKeys(row: Derived, mode: RankingMode): number[] {
+  switch (mode) {
+    case 'win_rate':
+      return [row.win_rate, row.wins, row.point_diff, row.points_for, row.matches_played]
+    case 'points':
+      return [row.league_points, row.point_diff, row.wins, row.win_rate, row.matches_played]
+    case 'wins':
+    default:
+      return [row.wins, row.win_rate, row.point_diff, row.points_for, row.matches_played]
+  }
 }
 
-/** 순위 기준 비교 함수 */
-function compareByRanking(a: Derived, b: Derived): number {
-  const ka = rankKeys(a)
-  const kb = rankKeys(b)
+function compareByRanking(a: Derived, b: Derived, mode: RankingMode): number {
+  const ka = rankKeys(a, mode)
+  const kb = rankKeys(b, mode)
   for (let i = 0; i < ka.length; i++) {
-    if (ka[i] !== kb[i]) return kb[i] - ka[i] // 내림차순
+    if (ka[i] !== kb[i]) return kb[i] - ka[i]
   }
-  return a.name.localeCompare(b.name, 'ko') // 이름 오름차순
+  return a.name.localeCompare(b.name, 'ko')
 }
 
-/** 두 행이 순위 동률인지 (비교 키가 모두 같은지) */
-function isTied(a: Derived, b: Derived): boolean {
-  const ka = rankKeys(a)
-  const kb = rankKeys(b)
+function isTied(a: Derived, b: Derived, mode: RankingMode): boolean {
+  const ka = rankKeys(a, mode)
+  const kb = rankKeys(b, mode)
   return ka.every((v, i) => v === kb[i])
 }
 
-/** 공식 순위 대상: 최소 1경기 이상 + 설정상 최소 경기 수 충족 */
 function isQualified(row: Derived, minMatches: number): boolean {
   return row.matches_played > 0 && row.matches_played >= minMatches
 }
 
-/** 순위 제외 그룹 정렬: 무단 결석 많은 순 → 이름 */
 function compareUnqualified(a: Derived, b: Derived): number {
   const aa = a.absences ?? 0
   const ba = b.absences ?? 0
@@ -76,16 +100,25 @@ function compareUnqualified(a: Derived, b: Derived): number {
  * 통계 행에 경쟁 순위(1, 2, 2, 4위)를 부여한다.
  * 경기 0회·최소 경기 수 미달은 rank = null 로 목록 하단에 배치한다.
  */
-export function buildRanking(rows: PlayerStatsRow[], minMatches: number): RankedPlayerStats[] {
+export function buildRanking(
+  rows: PlayerStatsRow[],
+  minMatches: number,
+  mode: RankingMode = 'wins',
+): RankedPlayerStats[] {
   const derived = rows.map(withDerived)
+  const rankingMode: RankingMode =
+    mode === 'win_rate' || mode === 'points' || mode === 'wins' ? mode : 'wins'
 
-  const qualified = derived.filter((r) => isQualified(r, minMatches)).sort(compareByRanking)
+  const qualified = derived
+    .filter((r) => isQualified(r, minMatches))
+    .sort((a, b) => compareByRanking(a, b, rankingMode))
   const unqualified = derived.filter((r) => !isQualified(r, minMatches)).sort(compareUnqualified)
 
   const ranked: RankedPlayerStats[] = []
   qualified.forEach((row, index) => {
     const prev = ranked[index - 1]
-    const rank = prev && isTied(row, qualified[index - 1]) ? prev.rank : index + 1
+    const rank =
+      prev && isTied(row, qualified[index - 1], rankingMode) ? prev.rank : index + 1
     ranked.push({ ...row, rank })
   })
 

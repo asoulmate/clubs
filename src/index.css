@@ -48,6 +48,17 @@ button {
   padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
 }
 
+/* 오늘의 경기: 하단 탭 + 추첨/만들기 FAB 가림 방지 */
+.pb-matches-fab {
+  padding-bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .pb-matches-fab {
+    padding-bottom: 6rem;
+  }
+}
+
 /* 숫자 입력의 스핀 버튼 제거 (스코어 입력) */
 input[type='number']::-webkit-outer-spin-button,
 input[type='number']::-webkit-inner-spin-button {

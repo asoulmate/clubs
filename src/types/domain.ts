@@ -159,11 +159,21 @@ export interface MatchAuditLog {
 /** 스코어 확정 방식: double = 상대 팀 확인 필요, single = 제출 즉시 확정 */
 export type ConfirmMode = 'double' | 'single'
 
+/**
+ * 순위 집계 방식
+ * - wins: 승수 → 승률 → 득실차 (기존)
+ * - win_rate: 승률 → 승수 → 득실차
+ * - points: 승점(승3·무1·패0) → 득실차 → 승수
+ */
+export type RankingMode = 'wins' | 'win_rate' | 'points'
+
 export interface AppSettings {
   confirm_mode: ConfirmMode
   allow_tie: boolean
   score_max: number
   min_matches_for_ranking: number
+  /** 결과 집계 순위 산정 방식 */
+  ranking_mode: RankingMode
   allow_proxy_registration: boolean
   /** true면 신규 가입 시 비활성(승인 대기), 관리자/서브가 활성화해야 이용 가능 */
   require_signup_approval: boolean
@@ -177,9 +187,10 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   confirm_mode: 'double',
-  allow_tie: false,
+  allow_tie: true,
   score_max: 99,
   min_matches_for_ranking: 0,
+  ranking_mode: 'wins',
   allow_proxy_registration: true,
   require_signup_approval: false,
   default_match_type: 'doubles',
@@ -217,6 +228,8 @@ export interface RankedPlayerStats extends PlayerStatsRow {
   win_rate: number
   point_diff: number
   participation_rate: number
+  /** 승점 (승3·무1·패0) — 승점 우선 집계/표시용 */
+  league_points: number
 }
 
 /** 확정 경기 결과에서 자동 계산된 개인 벌금 행 */
