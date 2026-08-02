@@ -37,6 +37,7 @@ export function PlayerSearchInput({
   const [guestName, setGuestName] = useState('')
   const [guestAward, setGuestAward] = useState<AwardLevel>('none')
   const [guestAffiliation, setGuestAffiliation] = useState('')
+  const [guestBirthYear, setGuestBirthYear] = useState('')
   const [guestSaving, setGuestSaving] = useState(false)
   const [guestError, setGuestError] = useState<string | null>(null)
   const clubId = useClubStore((s) => s.club?.id)
@@ -73,6 +74,7 @@ export function PlayerSearchInput({
     setGuestName(query.trim())
     setGuestAward('none')
     setGuestAffiliation('')
+    setGuestBirthYear('')
     setGuestError(null)
     setGuestOpen(true)
   }
@@ -91,6 +93,12 @@ export function PlayerSearchInput({
       setGuestError('클럽 정보가 없습니다.')
       return
     }
+    const birthYear = guestBirthYear.trim() ? Number(guestBirthYear) : null
+    const currentYear = new Date().getFullYear()
+    if (birthYear !== null && (!Number.isInteger(birthYear) || birthYear < 1900 || birthYear > currentYear)) {
+      setGuestError('출생연도를 확인해주세요.')
+      return
+    }
     setGuestSaving(true)
     try {
       const guest = await createGuestProfile(
@@ -98,6 +106,7 @@ export function PlayerSearchInput({
         guestAward,
         guestAffiliation.trim(),
         clubId,
+        birthYear,
       )
       onSelect(guest)
       setGuestOpen(false)
@@ -173,8 +182,8 @@ export function PlayerSearchInput({
           ) : (
             <div className="flex flex-col gap-2">
               <p className="text-xs text-amber-800">
-                비밀번호 없이 선수 목록에만 저장됩니다. 이후 같은 이름으로 회원가입하면 기록이
-                연동됩니다.
+                비밀번호 없이 선수 목록에만 저장됩니다. 동일인 연결은 플랫폼 관리자 검수 후
+                글로벌 기록에 반영됩니다.
               </p>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-gray-600">이름</span>
@@ -211,6 +220,19 @@ export function PlayerSearchInput({
                     </option>
                   ))}
                 </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-gray-600">출생연도 (선택·비공개)</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1900}
+                  max={new Date().getFullYear()}
+                  value={guestBirthYear}
+                  onChange={(e) => setGuestBirthYear(e.target.value)}
+                  className="h-11 rounded-lg border border-gray-300 px-3 text-base focus:border-green-600 focus:outline-none"
+                  placeholder="예: 1985"
+                />
               </label>
               {guestError && <p className="text-sm text-red-600">{guestError}</p>}
               <div className="flex gap-2">

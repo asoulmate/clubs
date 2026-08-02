@@ -14,6 +14,8 @@ const migrations = [
   'supabase/migrations/43_shadow_rating_schema.sql',
   'supabase/migrations/44_shadow_rating_engine.sql',
   'supabase/migrations/45_protect_platform_admin_password_reset.sql',
+  'supabase/migrations/46_block_legacy_global_member_removal.sql',
+  'supabase/migrations/47_guest_global_identity_linking.sql',
 ]
 
 for (const file of migrations) {
@@ -66,6 +68,17 @@ for (const table of ['global_players', 'player_aliases', 'player_external_ids', 
 assert.match(identity, /global_identity_guest_claim_enabled'[\s\S]{0,80}'false'::jsonb/i, 'guest claim DB flag must default OFF')
 assert.match(identity, /if not v_claim_enabled then[\s\S]*transfer_profile_refs/i, 'legacy guest path must be behind OFF branch')
 assert.match(identity, /update public\.profiles set global_player_id/i, 'mapping-based merge missing')
+
+const guestIdentity = read(migrations[9])
+assert.match(guestIdentity, /function public\.refresh_guest_identity_claim_candidates_v2\(\)/i, 'guest candidate refresh RPC missing')
+assert.match(guestIdentity, /a\.award_level\s*=\s*b\.award_level/i, 'guest candidate award evidence guard missing')
+assert.match(guestIdentity, /a\.normalized_affiliation\s*=\s*b\.normalized_affiliation/i, 'guest candidate affiliation evidence guard missing')
+assert.match(guestIdentity, /a\.birth_year is null or b\.birth_year is null or a\.birth_year = b\.birth_year/i, 'guest candidate birth-year evidence guard missing')
+assert.match(guestIdentity, /create table public\.player_identity_hints/i, 'private identity hints table missing')
+assert.match(guestIdentity, /revoke all on public\.player_identity_hints from public, anon, authenticated/i, 'private identity hints must not be browser-readable')
+assert.match(guestIdentity, /if not public\.is_platform_admin\(\)/i, 'guest identity RPC must be platform-admin only')
+assert.match(guestIdentity, /status\s*=\s*'canceled'/i, 'stale guest claims must be canceled after merge')
+assert.doesNotMatch(guestIdentity, /delete from public\.(profiles|club_members|match_players)/i, 'guest identity linking must preserve source records')
 
 const backfill = read(migrations[4])
 assert.match(backfill, /where global_player_id is null/i, 'idempotent unlinked filter missing')

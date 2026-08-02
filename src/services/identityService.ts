@@ -7,6 +7,12 @@ export async function listPendingIdentityClaims(): Promise<IdentityClaimRow[]> {
   return (data ?? []) as IdentityClaimRow[]
 }
 
+export async function refreshGuestIdentityClaimCandidates(): Promise<number> {
+  const { data, error } = await supabase.rpc('refresh_guest_identity_claim_candidates_v2')
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
 export async function reviewIdentityClaim(
   claimId: string,
   approve: boolean,
