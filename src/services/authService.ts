@@ -27,12 +27,20 @@ export async function signUpWithEmail(
   name: string,
   awardLevel: AwardLevel,
   clubSlug: string,
+  affiliation: string,
+  birthYear: number | null,
 ): Promise<{ needsEmailConfirm: boolean }> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { name, award_level: awardLevel, club_slug: clubSlug },
+      data: {
+        name,
+        award_level: awardLevel,
+        club_slug: clubSlug,
+        affiliation,
+        birth_year: birthYear,
+      },
       emailRedirectTo: redirectUrl('/login'),
     },
   })

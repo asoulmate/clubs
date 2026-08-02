@@ -16,6 +16,7 @@ const migrations = [
   'supabase/migrations/45_protect_platform_admin_password_reset.sql',
   'supabase/migrations/46_block_legacy_global_member_removal.sql',
   'supabase/migrations/47_guest_global_identity_linking.sql',
+  'supabase/migrations/48_safe_guest_signup_claim.sql',
 ]
 
 for (const file of migrations) {
@@ -79,6 +80,16 @@ assert.match(guestIdentity, /revoke all on public\.player_identity_hints from pu
 assert.match(guestIdentity, /if not public\.is_platform_admin\(\)/i, 'guest identity RPC must be platform-admin only')
 assert.match(guestIdentity, /status\s*=\s*'canceled'/i, 'stale guest claims must be canceled after merge')
 assert.doesNotMatch(guestIdentity, /delete from public\.(profiles|club_members|match_players)/i, 'guest identity linking must preserve source records')
+
+const safeGuestSignup = read(migrations[10])
+assert.match(safeGuestSignup, /function public\.handle_new_user\(\)/i, 'safe signup handler missing')
+assert.match(safeGuestSignup, /function public\.create_guest_claim_candidates\(\)/i, 'safe signup claim trigger function missing')
+assert.match(safeGuestSignup, /global_identity_guest_claim_enabled'[\s\S]{0,120}'true'::jsonb/i, 'safe signup claim cutover must be enabled')
+assert.match(safeGuestSignup, /p\.award_level\s*=\s*v_member\.award_level/i, 'signup claim award equality guard missing')
+assert.match(safeGuestSignup, /p\.affiliation[\s\S]{0,180}v_member\.affiliation/i, 'signup claim affiliation equality guard missing')
+assert.match(safeGuestSignup, /h\.birth_year is null or v_member_birth_year is null or h\.birth_year = v_member_birth_year/i, 'signup claim birth-year mismatch guard missing')
+assert.doesNotMatch(safeGuestSignup, /transfer_profile_refs/i, 'signup must not move guest references')
+assert.doesNotMatch(safeGuestSignup, /delete from public\.(profiles|club_members|match_players)/i, 'signup must not delete guest records')
 
 const backfill = read(migrations[4])
 assert.match(backfill, /where global_player_id is null/i, 'idempotent unlinked filter missing')

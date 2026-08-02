@@ -23,6 +23,8 @@ export function SignupPage() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [awardLevel, setAwardLevel] = useState<AwardLevel>('none')
+  const [affiliation, setAffiliation] = useState('')
+  const [birthYear, setBirthYear] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [needsConfirm, setNeedsConfirm] = useState(false)
@@ -71,6 +73,19 @@ export function SignupPage() {
       setError('비밀번호는 6자 이상 입력해주세요.')
       return
     }
+    if (affiliation.trim().length < 1) {
+      setError('동명이인 구분을 위해 소속을 입력해주세요.')
+      return
+    }
+    const parsedBirthYear = birthYear.trim() ? Number(birthYear) : null
+    const currentYear = new Date().getFullYear()
+    if (
+      parsedBirthYear !== null &&
+      (!Number.isInteger(parsedBirthYear) || parsedBirthYear < 1900 || parsedBirthYear > currentYear)
+    ) {
+      setError('출생연도를 확인해주세요.')
+      return
+    }
 
     setLoading(true)
     try {
@@ -80,6 +95,8 @@ export function SignupPage() {
         name.trim(),
         awardLevel,
         clubSlug,
+        affiliation.trim(),
+        parsedBirthYear,
       )
       if (needsEmailConfirm) setNeedsConfirm(true)
     } catch (err) {
@@ -197,6 +214,35 @@ export function SignupPage() {
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-600">소속</span>
+          <input
+            type="text"
+            required
+            maxLength={40}
+            value={affiliation}
+            onChange={(e) => setAffiliation(e.target.value)}
+            className={authInputClass}
+            placeholder="예: 모닝스타 테니스클럽"
+          />
+          <span className="text-xs text-gray-400">기존 게스트 기록과 동일인인지 검수할 때 사용합니다.</span>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-600">출생연도 (선택)</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1900}
+            max={new Date().getFullYear()}
+            value={birthYear}
+            onChange={(e) => setBirthYear(e.target.value)}
+            className={authInputClass}
+            placeholder="예: 1985"
+          />
+          <span className="text-xs text-gray-400">관리자 동일인 검수에만 사용되며 일반 사용자에게 공개되지 않습니다.</span>
         </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
