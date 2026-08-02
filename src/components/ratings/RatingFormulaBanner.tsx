@@ -35,8 +35,8 @@ export function RatingFormulaBanner() {
         표시됩니다.
       </p>
       <p className="mt-2 text-xs text-gray-500">
-        A–B, B–C 경기가 있으면 상대 네트워크를 통해 A와 C도 같은 글로벌 풀에서 간접 비교됩니다.
-        아래 연결 탐색에서 그 경로를 확인할 수 있습니다.
+        A–B, B–C 경기가 있으면 B를 통해 A와 C도 같은 글로벌 풀에서 간접 비교됩니다. 아래
+        「플랫폼 전체 연결」과 「두 선수 연결 경로」에서 그 관계를 확인할 수 있습니다.
       </p>
     </section>
   )

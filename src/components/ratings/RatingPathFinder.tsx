@@ -1,48 +1,48 @@
 import { useEffect, useState } from 'react'
-import type { ShadowRatingPath, ShadowRatingRow } from '../../types/domain'
-import { getShadowRatingPath } from '../../services/globalRatingService'
-import { toErrorMessage } from '../../utils/errors'
-import { Spinner } from '../common/Spinner'
+import type { ShadowRatingGraph, ShadowRatingPath, ShadowRatingRow } from '../../types/domain'
+import { findShortestRatingPath } from '../../utils/ratingGraph'
 
 interface Props {
-  poolId: string
   rows: ShadowRatingRow[]
+  graph: ShadowRatingGraph | null
   defaultFromId?: string | null
+  onPathChange?: (pathIds: string[]) => void
 }
 
-export function RatingPathFinder({ poolId, rows, defaultFromId }: Props) {
+export function RatingPathFinder({ rows, graph, defaultFromId, onPathChange }: Props) {
   const [fromId, setFromId] = useState(defaultFromId ?? '')
   const [toId, setToId] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ShadowRatingPath | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (defaultFromId) setFromId(defaultFromId)
   }, [defaultFromId])
 
-  const handleSearch = async () => {
-    if (!poolId || !fromId || !toId) {
+  useEffect(() => {
+    onPathChange?.(result?.found ? result.path : [])
+  }, [result, onPathChange])
+
+  const handleSearch = () => {
+    if (!fromId || !toId) {
       setError('출발·도착 선수를 모두 선택해주세요.')
+      setResult(null)
       return
     }
-    setLoading(true)
-    setError(null)
-    try {
-      setResult(await getShadowRatingPath(poolId, fromId, toId))
-    } catch (err) {
-      setError(toErrorMessage(err))
+    if (!graph) {
+      setError('연결 그래프를 아직 불러오지 못했습니다. 잠시 후 다시 시도해주세요.')
       setResult(null)
-    } finally {
-      setLoading(false)
+      return
     }
+    setError(null)
+    setResult(findShortestRatingPath(graph, fromId, toId))
   }
 
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4">
       <h2 className="font-extrabold text-gray-900">두 선수 연결 경로</h2>
       <p className="mt-1 text-xs text-gray-500">
-        A–B, B–C처럼 상대 네트워크로 이어진 최단 경로와 연결 경기를 보여줍니다.
+        예: A–B, B–C만 있어도 A와 C는 B를 통해 연결됩니다. 최단 경로와 연결 경기를 보여줍니다.
       </p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -86,32 +86,26 @@ export function RatingPathFinder({ poolId, rows, defaultFromId }: Props) {
 
       <button
         type="button"
-        disabled={loading}
-        onClick={() => void handleSearch()}
-        className="mt-3 h-11 w-full rounded-xl bg-green-700 font-bold text-white disabled:opacity-50"
+        onClick={handleSearch}
+        className="mt-3 h-11 w-full rounded-xl bg-green-700 font-bold text-white"
       >
-        {loading ? '찾는 중…' : '최단 경로 찾기'}
+        최단 경로 찾기
       </button>
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-      {loading && (
-        <div className="mt-4 flex justify-center">
-          <Spinner />
-        </div>
-      )}
 
-      {result && !loading && (
+      {result && (
         <div className="mt-4">
           {!result.found ? (
             <p className="rounded-xl bg-amber-50 px-3 py-3 text-sm text-amber-900">
-              연결 경로를 찾지 못했습니다. (같은 풀에서 공통 상대망이 없거나, 경기가 부족합니다)
+              연결 경로를 찾지 못했습니다. (공통 상대망으로 이어지지 않음)
             </p>
           ) : (
             <>
               <p className="text-sm font-semibold text-gray-700">
                 경로: {result.nodes.map((n) => n.player_name).join(' → ')}
                 <span className="ml-2 text-xs font-normal text-gray-400">
-                  ({Math.max(result.hops.length, 0)}홉)
+                  ({Math.max(result.hops.length, 0)}단계)
                 </span>
               </p>
               <ol className="mt-3 space-y-2">

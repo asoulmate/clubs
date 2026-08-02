@@ -45,6 +45,7 @@ SQL Editor에서 순서대로 실행:
 29. `supabase/migrations/38_security_baseline_foundation.sql` ~ `47_guest_global_identity_linking.sql` (보안·글로벌 신원·Shadow Elo 등)
 30. `supabase/migrations/48_tie_default_and_ranking_mode.sql` (동점 기본 허용 + 순위 집계 방식 ranking_mode)
 31. `supabase/migrations/49_shadow_rating_explorer.sql` (플랫폼 전체 리더보드·ego 네트워크·연결 경로 RPC)
+32. `supabase/migrations/50_shadow_rating_graph_and_path_fix.sql` (경로 RPC 수정 + 전체 연결 그래프)
 
 ### 1-2. 최초 관리자 지정
 

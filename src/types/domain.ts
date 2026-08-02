@@ -463,6 +463,31 @@ export interface ShadowRatingPath {
   hops: ShadowRatingPathHop[]
 }
 
+export interface ShadowRatingGraphNode {
+  global_player_id: string
+  player_name: string
+  rating: number
+  uncertainty: number
+  games_played: number
+  provisional: boolean
+}
+
+export interface ShadowRatingGraphEdge {
+  from_id: string
+  to_id: string
+  match_count: number
+  match_id: string | null
+  match_date: string | null
+  team_a_score: number | null
+  team_b_score: number | null
+  club_name: string | null
+}
+
+export interface ShadowRatingGraph {
+  nodes: ShadowRatingGraphNode[]
+  edges: ShadowRatingGraphEdge[]
+}
+
 export interface IdentityClaimRow {
   claim_id: string
   claim_type: string

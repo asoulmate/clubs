@@ -3,18 +3,25 @@ import { Link, Navigate } from 'react-router-dom'
 import { RatingEgoNetwork } from '../components/ratings/RatingEgoNetwork'
 import { RatingFormulaBanner } from '../components/ratings/RatingFormulaBanner'
 import { RatingLeaderboard } from '../components/ratings/RatingLeaderboard'
+import { RatingNetworkOverview } from '../components/ratings/RatingNetworkOverview'
 import { RatingPathFinder } from '../components/ratings/RatingPathFinder'
 import { Spinner } from '../components/common/Spinner'
 import { featureFlags } from '../config/featureFlags'
 import {
   getShadowRatingEgo,
+  getShadowRatingGraph,
   getShadowRatingLeaderboard,
   listShadowRatingPools,
   runShadowRating,
 } from '../services/globalRatingService'
 import { useAuthStore } from '../stores/authStore'
 import { useToastStore } from '../stores/toastStore'
-import type { ShadowRatingEgo, ShadowRatingPool, ShadowRatingRow } from '../types/domain'
+import type {
+  ShadowRatingEgo,
+  ShadowRatingGraph,
+  ShadowRatingPool,
+  ShadowRatingRow,
+} from '../types/domain'
 import { toErrorMessage } from '../utils/errors'
 
 function canViewGlobalRatings(isPlatformAdmin: boolean | undefined): boolean {
@@ -30,18 +37,27 @@ export function GlobalRatingsPage() {
   const [pools, setPools] = useState<ShadowRatingPool[]>([])
   const [poolId, setPoolId] = useState('')
   const [rows, setRows] = useState<ShadowRatingRow[]>([])
+  const [graph, setGraph] = useState<ShadowRatingGraph | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [pathIds, setPathIds] = useState<string[]>([])
   const [ego, setEgo] = useState<ShadowRatingEgo | null>(null)
   const [loading, setLoading] = useState(true)
+  const [graphLoading, setGraphLoading] = useState(false)
   const [egoLoading, setEgoLoading] = useState(false)
   const [running, setRunning] = useState(false)
 
   const loadBoard = useCallback(async (selectedPoolId: string) => {
     if (!selectedPoolId) {
       setRows([])
+      setGraph(null)
       return
     }
-    setRows(await getShadowRatingLeaderboard(selectedPoolId))
+    const [nextRows, nextGraph] = await Promise.all([
+      getShadowRatingLeaderboard(selectedPoolId),
+      getShadowRatingGraph(selectedPoolId),
+    ])
+    setRows(nextRows)
+    setGraph(nextGraph)
   }, [])
 
   useEffect(() => {
@@ -55,11 +71,15 @@ export function GlobalRatingsPage() {
         const preferred = nextPools.find((p) => p.discipline === 'doubles') ?? nextPools[0]
         const nextId = preferred?.pool_id ?? ''
         setPoolId(nextId)
+        setGraphLoading(true)
         await loadBoard(nextId)
       } catch (error) {
         if (active) showToast(toErrorMessage(error), 'error')
       } finally {
-        if (active) setLoading(false)
+        if (active) {
+          setLoading(false)
+          setGraphLoading(false)
+        }
       }
     })()
     return () => {
@@ -99,14 +119,17 @@ export function GlobalRatingsPage() {
   const handlePoolChange = async (nextId: string) => {
     setPoolId(nextId)
     setSelectedId(null)
+    setPathIds([])
     setEgo(null)
     setLoading(true)
+    setGraphLoading(true)
     try {
       await loadBoard(nextId)
     } catch (error) {
       showToast(toErrorMessage(error), 'error')
     } finally {
       setLoading(false)
+      setGraphLoading(false)
     }
   }
 
@@ -120,12 +143,17 @@ export function GlobalRatingsPage() {
       await runShadowRating(poolId)
       await loadBoard(poolId)
       if (selectedId) setEgo(await getShadowRatingEgo(poolId, selectedId, 2))
+      setPathIds([])
       showToast('Shadow 레이팅 계산이 완료되었습니다.', 'success')
     } catch (error) {
       showToast(toErrorMessage(error), 'error')
     } finally {
       setRunning(false)
     }
+  }
+
+  const handleSelect = (playerId: string) => {
+    setSelectedId(playerId)
   }
 
   return (
@@ -177,13 +205,25 @@ export function GlobalRatingsPage() {
         </div>
       ) : (
         <>
+          <RatingNetworkOverview
+            graph={graph}
+            loading={graphLoading}
+            selectedId={selectedId}
+            pathIds={pathIds}
+            onSelect={handleSelect}
+          />
           <RatingLeaderboard
             rows={rows}
             selectedId={selectedId}
-            onSelect={(row) => setSelectedId(row.global_player_id)}
+            onSelect={(row) => handleSelect(row.global_player_id)}
           />
           <RatingEgoNetwork ego={ego} loading={egoLoading} />
-          <RatingPathFinder poolId={poolId} rows={rows} defaultFromId={selectedId} />
+          <RatingPathFinder
+            rows={rows}
+            graph={graph}
+            defaultFromId={selectedId}
+            onPathChange={setPathIds}
+          />
         </>
       )}
     </div>

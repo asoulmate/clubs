@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 import type {
   ShadowRatingEgo,
   ShadowRatingExclusion,
+  ShadowRatingGraph,
   ShadowRatingPath,
   ShadowRatingPool,
   ShadowRatingRow,
@@ -127,6 +128,34 @@ export async function getShadowRatingPath(
       team_a_score: h.team_a_score == null ? null : Number(h.team_a_score),
       team_b_score: h.team_b_score == null ? null : Number(h.team_b_score),
       club_name: h.club_name == null ? null : String(h.club_name),
+    })),
+  }
+}
+
+export async function getShadowRatingGraph(poolId: string): Promise<ShadowRatingGraph> {
+  const { data, error } = await supabase.rpc('get_shadow_rating_graph_v1', {
+    p_pool_id: poolId,
+  })
+  if (error) throw error
+  const raw = (data ?? {}) as Record<string, unknown>
+  return {
+    nodes: ((raw.nodes as Record<string, unknown>[]) ?? []).map((n) => ({
+      global_player_id: String(n.global_player_id),
+      player_name: String(n.player_name),
+      rating: Number(n.rating),
+      uncertainty: Number(n.uncertainty),
+      games_played: Number(n.games_played),
+      provisional: Boolean(n.provisional),
+    })),
+    edges: ((raw.edges as Record<string, unknown>[]) ?? []).map((e) => ({
+      from_id: String(e.from_id),
+      to_id: String(e.to_id),
+      match_count: Number(e.match_count),
+      match_id: e.match_id == null ? null : String(e.match_id),
+      match_date: e.match_date == null ? null : String(e.match_date),
+      team_a_score: e.team_a_score == null ? null : Number(e.team_a_score),
+      team_b_score: e.team_b_score == null ? null : Number(e.team_b_score),
+      club_name: e.club_name == null ? null : String(e.club_name),
     })),
   }
 }
