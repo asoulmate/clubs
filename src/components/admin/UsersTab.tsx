@@ -302,11 +302,6 @@ export function UsersTab() {
                         가입 대기
                       </span>
                     )}
-                    {row.status === 'rejected' && (
-                      <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
-                        거절됨
-                      </span>
-                    )}
                     {!user.is_active && (
                       <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
                         비활성

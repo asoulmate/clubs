@@ -21,13 +21,16 @@ export interface ClubUserRow {
   profile: Profile
 }
 
-/** 클럽 멤버 목록 (pending/rejected 포함, withdrawn 제외, 이름 검색 지원) */
+/** 클럽 멤버 목록 (pending/active만, rejected·withdrawn 제외, 이름 검색 지원) */
 export async function fetchClubUsers(clubId: string, search = ''): Promise<ClubUserRow[]> {
   const members = await fetchClubMembers(clubId)
   const trimmed = search.trim().toLowerCase()
 
   return members
-    .filter((row) => (row as { status: ClubMemberStatus }).status !== 'withdrawn')
+    .filter((row) => {
+      const status = (row as { status: ClubMemberStatus }).status
+      return status !== 'withdrawn' && status !== 'rejected'
+    })
     .map((row) => {
       const raw = (row as { profile: Profile | Profile[] | null }).profile
       const profile = Array.isArray(raw) ? raw[0] : raw
