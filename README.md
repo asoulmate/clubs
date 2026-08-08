@@ -6,6 +6,7 @@
 - **Backend**: Supabase (PostgreSQL + Auth + Realtime + RLS + RPC)
 - **호스팅**: GitHub Pages (GitHub Actions 자동 배포)
 - **라우팅**: HashRouter (GitHub Pages 새로고침 404 문제 회피)
+- **설치**: PWA — 홈 화면에 추가하면 주소창 없는 독립 앱으로 실행 (`docs/deployment.md` 6장)
 
 ## 프로젝트 구조
 
@@ -13,6 +14,8 @@
 ├─ .github/workflows/deploy.yml   # GitHub Pages 자동 배포
 ├─ supabase/migrations/           # DB 스키마·함수·RLS·시드 SQL (01→04 순서 실행)
 ├─ docs/                          # 설계 문서·테스트 체크리스트·배포 가이드
+├─ scripts/                       # 점검 스크립트 + PWA 아이콘 생성기
+├─ public/                        # PWA manifest·서비스워커·아이콘 (그대로 배포됨)
 └─ src/
    ├─ lib/                        # Supabase 클라이언트
    ├─ types/                      # 도메인 타입 정의

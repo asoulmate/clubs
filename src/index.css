@@ -48,6 +48,23 @@ button {
   padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
 }
 
+/* 홈 화면 추가 후 독립 앱(standalone)으로 실행될 때 상단 상태바와 콘텐츠가 겹치지 않게 한다.
+   브라우저에서는 상태바 영역이 브라우저 UI에 가려져 inset 이 0 이므로 영향이 없다.
+   전체 높이 유틸은 확보한 여백만큼 줄여 불필요한 스크롤이 생기지 않게 보정한다. */
+@media (display-mode: standalone) {
+  #root {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .min-h-dvh {
+    min-height: calc(100dvh - env(safe-area-inset-top, 0px));
+  }
+
+  .h-dvh {
+    height: calc(100dvh - env(safe-area-inset-top, 0px));
+  }
+}
+
 /* 오늘의 경기: 하단 탭 + 추첨/만들기 FAB 가림 방지 */
 .pb-matches-fab {
   padding-bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));

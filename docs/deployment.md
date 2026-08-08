@@ -115,7 +115,42 @@ npm run build             # 타입 검사 + 프로덕션 빌드
 npm run preview           # 빌드 결과 미리보기
 ```
 
-## 5. 문제 해결
+## 5. PWA (홈 화면 추가 → 주소창 없는 독립 앱)
+
+`public/` 의 파일이 빌드 결과물 루트로 그대로 복사되어 배포된다.
+
+| 파일 | 역할 |
+|---|---|
+| `public/manifest.webmanifest` | 앱 이름·아이콘·`display: standalone`. `start_url`/`scope`/아이콘 경로를 모두 상대 경로로 두어 `/clubs/` 같은 하위 경로 배포에서도 그대로 동작한다 |
+| `public/sw.js` | 서비스워커. 문서 요청은 네트워크 우선(배포 직후에도 최신 화면), 해시 파일명 자산은 캐시 우선, Supabase 등 외부 요청은 가로채지 않는다 |
+| `public/icons/*` | 설치 아이콘 (`192`/`512`, maskable, `apple-touch-icon`, favicon) |
+
+서비스워커는 `src/registerServiceWorker.ts` 에서 **프로덕션 빌드에서만** `import.meta.env.BASE_URL` 기준으로 등록한다. 개발 서버(`npm run dev`)에서는 등록되지 않으므로 캐시 때문에 헷갈릴 일이 없다.
+
+### 5-1. 설치 방법 안내
+
+- **Android/Chrome**: 주소창 메뉴 → `앱 설치` (또는 자동 표시되는 설치 배너)
+- **iOS/Safari**: 공유 버튼 → `홈 화면에 추가` (iOS 는 Safari 에서만 가능)
+
+설치 후에는 주소창·탭 없이 실행되고, `@media (display-mode: standalone)` 규칙이 상단 상태바 영역만큼 여백을 확보한다.
+
+### 5-2. 아이콘 변경
+
+`scripts/generate-pwa-icons.mjs` 가 외부 의존성 없이 PNG 를 생성한다. 색상·모양을 바꾼 뒤 재생성하고 결과물을 커밋한다.
+
+```bash
+node scripts/generate-pwa-icons.mjs
+```
+
+### 5-3. 검증
+
+`npm run build && npm run preview` 후 DevTools → Application 탭에서 확인한다.
+
+- Manifest: 오류 없음, `start_url`/`scope` 가 배포 경로(`/clubs/`)로 해석되는지
+- Service Workers: `activated and is running`
+- 오프라인 체크 후 새로고침 → 앱 화면이 뜨는지 (데이터는 Supabase 연결이 필요하므로 목록은 비어 보일 수 있다)
+
+## 6. 문제 해결
 
 | 증상 | 원인/해결 |
 |---|---|
@@ -124,3 +159,6 @@ npm run preview           # 빌드 결과 미리보기
 | 이메일 링크가 localhost로 감 | Supabase Site URL/Redirect URLs에 실제 Pages 주소 등록 |
 | "환경변수가 설정되지 않았습니다" | GitHub Secrets 미등록 또는 로컬 `.env` 누락 |
 | 실시간 반영 안 됨 | `01_schema.sql`의 `alter publication supabase_realtime ...` 실행 여부 확인 |
+| 설치 메뉴가 안 보임 | HTTPS(또는 localhost)인지, `manifest.webmanifest`·`sw.js`가 200으로 내려오는지 확인. iOS 는 Safari 에서만 `홈 화면에 추가` 가능 |
+| 홈 화면 앱에 주소창이 보임 | 아이콘을 다시 추가해야 한다. 기존 아이콘은 manifest 적용 이전 설정을 그대로 들고 있다 |
+| 배포했는데 옛 화면이 보임 | 문서 요청은 네트워크 우선이라 새로고침으로 갱신된다. 그래도 남으면 Application → Service Workers → `Unregister` 후 새로고침 |
